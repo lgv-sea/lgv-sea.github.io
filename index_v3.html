@@ -1238,11 +1238,30 @@ function _finishFindNearest(lat,lng,acc){
     }catch(e){}
   }
 
-  /* Niveau 3 : pk_hecto (100m) */
+  /* Niveau 3 : pk_hecto (100m) avec interpolation entre les 2 plus proches → ~10m */
   if(!npk){
     if(_pkHData&&_pkHData.features&&_pkHData.features.length){
-      npk=_nearestOf(lat,lng,_pkHData.features.map(function(f){return{props:f.properties,geom:f.geometry};}));
-      if(npk)pkPrec='100m';
+      var hF=_pkHData.features.map(function(f){return{props:f.properties,geom:f.geometry};});
+      var hS=hF.map(function(f){return{f:f,d:_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0])};})
+              .sort(function(a,b){return a.d-b.d;});
+      function _parsePKm(lbl){
+        if(lbl==null)return -1;
+        var s=String(lbl),m=s.match(/(\d+)\+(\d+)/);
+        if(m)return parseInt(m[1])*1000+parseInt(m[2]);
+        var n=parseFloat(s);return isNaN(n)?-1:Math.round(n);
+      }
+      if(hS.length>=2){
+        var h1=hS[0],h2=hS[1];
+        var pkm1=_parsePKm(h1.f.props._pk_label||h1.f.props.pk);
+        var pkm2=_parsePKm(h2.f.props._pk_label||h2.f.props.pk);
+        if(pkm1>=0&&pkm2>=0){
+          var tD=h1.d+h2.d;
+          var pkI=Math.round(pkm1*(h2.d/tD)+pkm2*(h1.d/tD));
+          var ikm=Math.floor(pkI/1000),im=pkI%1000;
+          npk={f:{props:Object.assign({},h1.f.props,{_pk_label:ikm+'+'+('000'+im).slice(-3)}),geom:h1.f.geom},d:h1.d};
+          pkPrec='~10m';
+        }else{npk=hS[0];pkPrec='100m';}
+      }else if(hS.length){npk=hS[0];pkPrec='100m';}
     }
   }
 
@@ -1818,6 +1837,9 @@ window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴
 async function warmOfflineCache(){
   var btn=document.getElementById('offline-btn');
   if(!navigator.onLine){showNetToast('🔴 Hors ligne – impossible de mettre à jour le cache');return;}
+  if(btn){btn.textContent='⏳';btn.disabled=true;btn.dataset.state='';}
+
+  /* 1 — GeoJSON + fichiers app */
   var files=[
     'data/rail.geojson','data/pk.geojson','data/pk_hecto.geojson',
     'data/oa.geojson','data/oh.geojson','data/pam.geojson','data/acces.geojson','data/oa_poly.geojson',
@@ -1825,17 +1847,37 @@ async function warmOfflineCache(){
     'data/n2.geojson','data/old.geojson','data/mc.geojson','data/eco.geojson',
     'index_v3.html','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png'
   ];
-  if(btn){btn.textContent='⏳';btn.disabled=true;btn.dataset.state='';}
-  var done=0,total=files.length;
+  var done=0;
   for(var i=0;i<files.length;i+=4){
     await Promise.all(files.slice(i,i+4).map(function(f){
-      return fetch(f).then(function(){done++;if(btn)btn.title='Cache: '+done+'/'+total;}).catch(function(){done++;});
+      return fetch(f).then(function(){done++;if(btn)btn.title='Données: '+done+'/'+files.length;}).catch(function(){done++;});
     }));
   }
+
+  /* 2 — Tuiles fond de carte CartoDB Voyager (zoom 5→11, corridor LGV SEA)
+     ~1000 tuiles, ~30 Mo dans le cache SW — 0 Mo dans l'APK */
+  var BB={x0:-1.1,x1:1.1,y0:44.4,y1:47.6};
+  function tX(lng,z){return Math.floor((lng+180)/360*Math.pow(2,z));}
+  function tY(lat,z){var r=lat*Math.PI/180;var n=Math.pow(2,z);return Math.floor(n*(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2);}
+  var tiles=[];
+  var TPL='https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+  for(var z=5;z<=11;z++){
+    var xa=tX(BB.x0,z),xb=tX(BB.x1,z),ya=tY(BB.y1,z),yb=tY(BB.y0,z);
+    for(var x=xa;x<=xb;x++)for(var y=ya;y<=yb;y++)
+      tiles.push(TPL.replace('{z}',z).replace('{x}',x).replace('{y}',y));
+  }
+  if(btn)btn.title='🗺 Tuiles: 0/'+tiles.length;
+  var td=0;
+  for(var i=0;i<tiles.length;i+=8){
+    await Promise.all(tiles.slice(i,i+8).map(function(u){
+      return fetch(u).then(function(){td++;if(btn)btn.title='🗺 Tuiles: '+td+'/'+tiles.length;}).catch(function(){td++;});
+    }));
+  }
+
   try{localStorage.setItem('lgv_cached_v3','1');}catch(e){}
-  if(btn){btn.textContent='✅';btn.title='Carte disponible hors-ligne ✓';}
-  showNetToast('✅ Carte disponible hors-ligne');
-  setTimeout(function(){if(btn){btn.textContent='📶';btn.disabled=false;}updateNetBadge();},2500);
+  if(btn){btn.textContent='✅';btn.title='Carte offline ✓ (données + tuiles z5→11)';}
+  showNetToast('✅ Carte disponible hors-ligne (données + fond z5–11)');
+  setTimeout(function(){if(btn){btn.textContent='📶';btn.disabled=false;}updateNetBadge();},3000);
 }
 window.warmOfflineCache=warmOfflineCache;
 if('serviceWorker' in navigator){
