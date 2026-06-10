@@ -301,7 +301,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Cache-bust automatique sur changement de version ── */
 (function(){
-  var V='v3.44';
+  var V='v3.45';
   try{
     if(location.search.indexOf('reset=1')!==-1)return;
     var s=localStorage.getItem('lgv_app_ver');
@@ -323,7 +323,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.44';
+var APP_VER = 'v3.45';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -1094,7 +1094,10 @@ function locateMe(){
     function onIdle(){if(done)return;done=true;map.off('idle',onIdle);_finishFindNearest(lat,lng,acc);}
     map.on('idle',onIdle);
     setTimeout(function(){if(!done){done=true;map.off('idle',onIdle);_finishFindNearest(lat,lng,acc);}},4000);
-  },function(e){showNetToast('📍 Localisation impossible : '+e.message);},{enableHighAccuracy:true,timeout:10000});
+  },function(e){
+    var msg=e.code===1?'permission refusée':e.code===3?'délai GPS dépassé (30s)':e.message;
+    showNetToast('📍 Localisation impossible : '+msg);
+  },{enableHighAccuracy:true,timeout:30000,maximumAge:10000});
 }
 window.locateMe=locateMe;
 
@@ -1144,7 +1147,10 @@ function findNearest(){
     map.on('idle',onReady);
     /* Fallback si idle ne se déclenche pas dans 4s */
     setTimeout(function(){if(!done){done=true;map.off('idle',onReady);_finishFindNearest(lat,lng,acc);}},4000);
-  },function(e){closeDetail();showNetToast('📍 Localisation impossible : '+e.message);},{enableHighAccuracy:true,timeout:10000});
+  },function(e){
+    var msg=e.code===1?'permission refusée':e.code===3?'délai GPS dépassé (30s)':e.message;
+    closeDetail();showNetToast('📍 Localisation impossible : '+msg);
+  },{enableHighAccuracy:true,timeout:30000,maximumAge:10000});
 }
 window.findNearest=findNearest;
 
