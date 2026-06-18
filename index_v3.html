@@ -166,10 +166,11 @@ button,a,[onclick]{touch-action:manipulation}
   z-index:802;background:rgba(26,26,46,.9);color:white;padding:5px 16px;border-radius:16px;
   font-size:11.5px;white-space:nowrap;pointer-events:none}
 /* Légende */
-.lgv-legend-wrap{position:relative}
+.lgv-legend-wrap{position:relative;display:flex;flex-direction:column}
 .lgv-legend-hdr{display:none;align-items:center;gap:6px;background:white;padding:6px 10px;
   border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;color:#1a1a2e;
-  box-shadow:0 2px 10px rgba(0,0,0,.2);user-select:none;-webkit-user-select:none}
+  box-shadow:0 2px 10px rgba(0,0,0,.2);user-select:none;-webkit-user-select:none;
+  touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.08)}
 .lgv-legend-arrow{font-size:10px;color:#888;transition:transform .2s}
 .lgv-legend-wrap.open .lgv-legend-arrow{transform:rotate(180deg)}
 .lgv-legend{background:white;padding:10px 14px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.2);
@@ -230,9 +231,9 @@ button,a,[onclick]{touch-action:manipulation}
   .dp-k{font-size:11.5px;min-width:80px;width:80px}
   .dp-v{font-size:12.5px}
   .dp-main{font-size:14px}
-  /* Légende : cachée par défaut, accessible via bouton toggle */
+  /* Légende : cachée par défaut, s'étend VERS LE HAUT (ctrl en bas de l'écran) */
   .lgv-legend-hdr{display:flex}
-  .lgv-legend{display:none;margin-top:4px}
+  .lgv-legend{display:none;order:-1;margin-bottom:4px;max-height:50vh;overflow-y:auto}
   .lgv-legend-wrap.open .lgv-legend{display:block}
 }
 @media(max-width:420px){
@@ -641,7 +642,7 @@ function _initVectorLayers(){
   // ── Zones OLD (fond seul, pas de contour) ──
   map.addLayer({id:'old-fill',type:'fill',source:'old',minzoom:5,
     paint:{'fill-color':'#4f83ff',
-      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.12,14,0.10,18,0.05]}});
+      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.35,14,0.30,18,0.25]}});
 
   // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
@@ -811,7 +812,8 @@ function _initVectorLayers(){
       '<div class="li"><div class="lc" style="background:#ff9800;opacity:.5"></div>Natura ZPS</div>'+
       '<div class="li"><div class="lc" style="background:#81c784;opacity:.6"></div>Écopâturage actif</div>'+
       '<div class="li"><div class="lc" style="background:#388e3c;opacity:.5"></div>Boisements</div>';
-    wrap.appendChild(hdr);wrap.appendChild(d);
+    /* d avant hdr : garantit l'expansion vers le haut sur mobile (flexbox column) */
+    wrap.appendChild(d);wrap.appendChild(hdr);
     return wrap;},onRemove:function(){}};
   map.addControl(legendCtrl,'bottom-left');
 }
