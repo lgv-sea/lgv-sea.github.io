@@ -312,7 +312,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Cache-bust automatique sur changement de version ── */
 (function(){
-  var V='v3.46';
+  var V='v3.47';
   try{
     if(location.search.indexOf('reset=1')!==-1)return;
     var s=localStorage.getItem('lgv_app_ver');
@@ -334,7 +334,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.46';
+var APP_VER = 'v3.47';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -514,7 +514,7 @@ var LAYER_IDS = {
   oapoly:  ['oapoly-fill','oapoly-outline','oapoly-lbl'],
   bois:    ['bois-fill','bois-outline'],
   n2:      ['n2-fill','n2-outline'],
-  old:     ['old-fill'],
+  old:     ['old-fill','old-outline'],
   mc:      ['mc-fill','mc-outline'],
   eco:     ['eco-fill','eco-outline'],
 };
@@ -638,10 +638,13 @@ function _initVectorLayers(){
     paint:{'line-color':['match',['get','type_complet'],'ZPS','#e65100','ZSC','#1b5e20','#388e3c'],
       'line-width':1.5,'line-dasharray':[3,2]}});
 
-  // ── Zones OLD (fond seul, pas de contour) ──
+  // ── Zones OLD ──
   map.addLayer({id:'old-fill',type:'fill',source:'old',minzoom:5,
-    paint:{'fill-color':'#4f83ff',
-      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.12,14,0.10,18,0.05]}});
+    paint:{'fill-color':'#1435d4',
+      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.82,10,0.88,14,0.80,18,0.65]}});
+  map.addLayer({id:'old-outline',type:'line',source:'old',minzoom:5,
+    paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],5,2,10,2.5,14,3.5],
+      'line-opacity':1.0,'line-dasharray':[5,2]}});
 
   // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
@@ -653,11 +656,13 @@ function _initVectorLayers(){
   // ── Écopâturage ──
   map.addLayer({id:'eco-fill',type:'fill',source:'eco',minzoom:8,
     paint:{'fill-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
-      'ACTIVE'],'#81c784','#e0e0e0'],
-      'fill-opacity':['interpolate',['linear'],['zoom'],8,0.45,16,0.20]}});
+      'ACTIVE'],'#66bb6a','#b0bec5'],
+      'fill-opacity':['interpolate',['linear'],['zoom'],8,0.65,12,0.60,16,0.45,18,0.30]}});
   map.addLayer({id:'eco-outline',type:'line',source:'eco',minzoom:8,
     paint:{'line-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
-      'ACTIVE'],'#2e7d32','#999'],'line-width':1.5}});
+      'ACTIVE'],'#1b5e20','#607d8b'],
+      'line-width':['interpolate',['linear'],['zoom'],8,1.5,14,2.2,18,1.8],
+      'line-opacity':['interpolate',['linear'],['zoom'],8,0.8,16,0.9]}});
 
   // ── Hover + click sur couches PMTiles ──
   ['bois-fill','n2-fill','old-fill','mc-fill','eco-fill'].forEach(function(lid){
@@ -805,7 +810,7 @@ function _initVectorLayers(){
       '<div class="li"><div class="ll" style="background:#ef6c00"></div>OH Hydrauliques</div>'+
       '<div class="li"><span style="font-size:14px">🌱</span> PAM</div>'+
       '<div class="li"><span style="font-size:14px">🚧</span> Accès PTLO/PTLA</div>'+
-      '<div class="li"><div class="lc" style="background:#4f83ff;opacity:.5"></div>Zones OLD</div>'+
+      '<div class="li"><div class="lc" style="background:#1435d4;opacity:.85;border:1.5px solid white"></div>Zones OLD</div>'+
       '<div class="li"><div class="lc" style="background:#9c27b0;opacity:.4"></div>Mesures comp.</div>'+
       '<div class="li"><div class="lc" style="background:#1b5e20;opacity:.6"></div>Natura ZSC</div>'+
       '<div class="li"><div class="lc" style="background:#ff9800;opacity:.5"></div>Natura ZPS</div>'+
