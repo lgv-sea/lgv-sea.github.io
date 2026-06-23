@@ -313,7 +313,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Cache-bust automatique sur changement de version ── */
 (function(){
-  var V='v3.50';
+  var V='v3.51';
   try{
     if(location.search.indexOf('reset=1')!==-1)return;
     var s=localStorage.getItem('lgv_app_ver');
@@ -335,7 +335,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.50';
+var APP_VER = 'v3.51';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -640,9 +640,9 @@ function _initVectorLayers(){
     paint:{
       'fill-color':['interpolate',['linear'],['zoom'],5,'#ffffff',11,'#ffffff',13,'#1435d4'],
       'fill-opacity':['interpolate',['linear'],['zoom'],5,0.15,10,0.18,12,0.55,14,0.80,17,0.40,19,0.12,21,0.03]}});
-  map.addLayer({id:'old-outline',type:'line',source:'old',minzoom:5,
-    paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],5,2,10,2.5,14,3.5],
-      'line-opacity':['interpolate',['linear'],['zoom'],14,1.0,19,0.5,21,0.2],'line-dasharray':[5,2]}});
+  map.addLayer({id:'old-outline',type:'line',source:'old',minzoom:13,
+    paint:{'line-color':'#1435d4','line-width':1.2,
+      'line-opacity':['interpolate',['linear'],['zoom'],13,0.5,16,0.7,19,0.3]}});
 
   // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
