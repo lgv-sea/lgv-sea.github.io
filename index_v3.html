@@ -313,7 +313,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Cache-bust automatique sur changement de version ── */
 (function(){
-  var V='v3.47';
+  var V='v3.48';
   try{
     if(location.search.indexOf('reset=1')!==-1)return;
     var s=localStorage.getItem('lgv_app_ver');
@@ -335,7 +335,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.47';
+var APP_VER = 'v3.48';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -638,10 +638,10 @@ function _initVectorLayers(){
   // ── Zones OLD ──
   map.addLayer({id:'old-fill',type:'fill',source:'old',minzoom:5,
     paint:{'fill-color':'#1435d4',
-      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.82,10,0.88,14,0.80,18,0.65]}});
+      'fill-opacity':['interpolate',['linear'],['zoom'],5,0.82,10,0.88,14,0.80,17,0.50,19,0.25,21,0.10]}});
   map.addLayer({id:'old-outline',type:'line',source:'old',minzoom:5,
     paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],5,2,10,2.5,14,3.5],
-      'line-opacity':1.0,'line-dasharray':[5,2]}});
+      'line-opacity':['interpolate',['linear'],['zoom'],14,1.0,19,0.5,21,0.2],'line-dasharray':[5,2]}});
 
   // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
@@ -654,7 +654,7 @@ function _initVectorLayers(){
   map.addLayer({id:'eco-fill',type:'fill',source:'eco',minzoom:8,
     paint:{'fill-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
       'ACTIVE'],'#66bb6a','#b0bec5'],
-      'fill-opacity':['interpolate',['linear'],['zoom'],8,0.65,12,0.60,16,0.45,18,0.30]}});
+      'fill-opacity':['interpolate',['linear'],['zoom'],8,0.65,12,0.60,16,0.45,18,0.25,20,0.10]}});
   map.addLayer({id:'eco-outline',type:'line',source:'eco',minzoom:8,
     paint:{'line-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
       'ACTIVE'],'#1b5e20','#607d8b'],
