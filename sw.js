@@ -1,5 +1,5 @@
 /* Service Worker – Carte LGV SEA */
-const CACHE = 'lgv-sea-v47';
+const CACHE = 'lgv-sea-v48';
 const TILE_CACHE = 'lgv-tiles-v1';
 
 /* Ne jamais pré-cacher le HTML : il doit toujours venir du réseau */
@@ -60,11 +60,9 @@ self.addEventListener('fetch', e => {
   /* Navigation HTML → jamais interceptée, toujours réseau direct */
   if (e.request.mode === 'navigate') return;
 
-  /* PMTiles (.pmtiles) → réseau direct obligatoire (requêtes Range / 206) */
-  if (/\.pmtiles(\?|$)/.test(url)) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+  /* PMTiles → ne pas intercepter : le navigateur gère les Range requests (206)
+     nativement. Appeler respondWith(fetch()) suffit sur Chrome mais bloque Firefox. */
+  if (/\.pmtiles(\?|$)/.test(url)) return;
 
   /* Tuiles OSM/Esri/IGN → réseau d'abord, cache en fallback */
   if (/openstreetmap\.org|arcgisonline\.com|geoportail|cartocdn\.com/.test(url)) {
