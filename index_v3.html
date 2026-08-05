@@ -501,7 +501,7 @@ try{_savedPosAtLoad=JSON.parse(localStorage.getItem('lgv_map_pos')||'null');}cat
 
 // ── Visibilité couches (état utilisateur) ──
 var _vis={rail:true,pk:true,pkhecto:true,pkmetric:true,oa:true,oh:true,pam:true,acces:true,
-           oapoly:true,bois:true,n2:true,old:true,mc:true,eco:true};
+           oapoly:true,bois:true,n2:true,old:false,mc:true,eco:true};
 
 // ── IDs couches par clé ──
 var LAYER_IDS = {
@@ -592,8 +592,8 @@ if(location.protocol==='file:'){
     if(_pkPrefetch)_setupPKLayers(_pkPrefetch);
     _loadAllData();
     _initLayersPanel();
-    /* Force toutes les couches visibles */
-    Object.keys(LAYER_IDS).forEach(function(k){setVis(k,true);});
+    /* Applique l'etat de visibilite par defaut de chaque couche (_vis) */
+    Object.keys(LAYER_IDS).forEach(function(k){setVis(k,_vis[k]);});
     _initSearch();
     _restoreMapPos();
     /* Afficher état de chargement immédiatement */
@@ -1027,7 +1027,7 @@ function _initLayersPanel(){
     else sw='<div class="lp-swatch" style="background:'+d.color+';opacity:.7"></div>';
     var badge=d.lpId?'<small id="'+d.lpId+'" style="color:#bbb;font-size:10px"> ⏳</small>':'';
     var mz=d.minZoom?'<small class="lp-mz" data-minzoom="'+d.minZoom+'" style="margin-left:auto;font-size:9px;color:#bbb;white-space:nowrap;padding-left:4px">z≥'+d.minZoom+'</small>':'';
-    html+='<div class="lp-item"><input type="checkbox" id="lp-chk-'+d.key+'" checked onchange="toggleLayer(\''+d.key+'\',this.checked)">'+sw+'<span style="flex:1">'+d.label+badge+'</span>'+mz+'</div>';
+    html+='<div class="lp-item"><input type="checkbox" id="lp-chk-'+d.key+'" '+(_vis[d.key]?'checked':'')+' onchange="toggleLayer(\''+d.key+'\',this.checked)">'+sw+'<span style="flex:1">'+d.label+badge+'</span>'+mz+'</div>';
   });
   html+='<div id="kml-layers-section"></div>';
   body.innerHTML=html;
