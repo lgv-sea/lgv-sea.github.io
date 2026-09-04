@@ -339,7 +339,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.67';
+var APP_VER = 'v3.66';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -349,7 +349,7 @@ fetch('data/pk.geojson?_v='+APP_VER)
   .catch(function(e){console.warn('PK prefetch:',e);_loading.pk=false;});
 
 // ── PMTiles protocol ──
-var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=367', document.baseURI).href;
+var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=366', document.baseURI).href;
 var _pmProtocol = new pmtiles.Protocol();
 var _pkMetricArchive = new pmtiles.PMTiles(_pkMetricBase);
 _pmProtocol.add(_pkMetricArchive);
@@ -1203,10 +1203,17 @@ function _gpsAccept(pos){
 }
 
 function _gpsDisplayedPosition(raw){
-  /* La position cartographique doit rester la position GPS réelle.
-     Aucun lissage spatial n'est appliqué : un lissage peut déplacer le point
-     de plusieurs mètres et fausser la recherche du PK métrique. */
-  return {lat:raw.lat,lng:raw.lng};
+  if(!_gpsLastDisplayed)return{lat:raw.lat,lng:raw.lng};
+  var speed=raw.speed;
+  var alpha;
+  if(speed!==null&&speed>=12)alpha=.92;       /* véhicule */
+  else if(speed!==null&&speed>=1.5)alpha=.82; /* marche / déplacement lent */
+  else alpha=.35;                             /* immobile : stabilisation légère */
+
+  return{
+    lat:_gpsLastDisplayed.lat+(raw.lat-_gpsLastDisplayed.lat)*alpha,
+    lng:_gpsLastDisplayed.lng+(raw.lng-_gpsLastDisplayed.lng)*alpha
+  };
 }
 
 function _drawGps(raw){
@@ -1371,14 +1378,8 @@ function _validateMetricPKFeatures(features){
 
 function _metricRenderedCandidates(lat,lng){
   if(!map.getLayer('pkm1-hit'))return[];
-
-  /* Recherche volontairement large : la précision du GPS est souvent de 5–30 m.
-     Le PK retenu reste ensuite STRICTEMENT un point de la couche métrique 1 m. */
   var pt=map.project([lng,lat]);
-  var acc=(_gpsLastRaw&&isFinite(_gpsLastRaw.accuracy))?_gpsLastRaw.accuracy:30;
-  var radiusM=Math.max(25,Math.min(150,acc*2.5));
-  var metersPerPixel=Math.max(0.05,156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,map.getZoom()));
-  var radiusPx=Math.max(30,Math.min(900,radiusM/metersPerPixel));
+  var radiusPx=90;
   var bbox=[[pt.x-radiusPx,pt.y-radiusPx],[pt.x+radiusPx,pt.y+radiusPx]];
   var fs=map.queryRenderedFeatures(bbox,{layers:['pkm1-hit']});
   return _validateMetricPKFeatures(fs);
@@ -1414,30 +1415,28 @@ function _pkUnavailableMessage(){
 
 function findNearest(){
   if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible.');return;}
-
-  /* Le bouton PK? utilise UNIQUEMENT la dernière position GPS fraîche. */
   if(!_gpsLastRaw||_gpsAgeMs()>GPS_STALE_MS){
     showNetToast('⚠ GPS périmé : attendez une nouvelle position');
-    _gpsStatus('⚠ GPS','Aucune position GPS récente · recherche PK 1 m impossible',true);
+    _gpsStatus('⚠ GPS','Aucune position GPS récente · PK interdit',true);
     return;
   }
   if(_gpsLastRaw.accuracy>GPS_MAX_ACCURACY){
     showNetToast('⚠ Précision GPS insuffisante (±'+Math.round(_gpsLastRaw.accuracy)+' m)');
     return;
   }
-  if(!map.getSource('pk_metric')||!map.getLayer('pkm1-hit')){
+  if(!map.getSource('pk_metric')){
     openDetail('📍 PK le plus proche',_pkUnavailableMessage());return;
   }
 
   var lat=_gpsLastRaw.lat,lng=_gpsLastRaw.lng,acc=_gpsLastRaw.accuracy;
   _gpsFollowing=true;
-  /* Zoom élevé obligatoire pour charger les tuiles PK 1 m. */
-  map.jumpTo({center:[lng,lat],zoom:21});
+  var z=Math.max(20,Math.min(21,map.getZoom()));
+  map.jumpTo({center:[lng,lat],zoom:z});
 
-  openDetail('📍 PK 1 m le plus proche',
+  openDetail('📍 Éléments LGV proches',
     '<div style="padding:18px;text-align:center;color:#888">'+
-    '<p style="font-size:14px;margin:0">⏳ Chargement forcé des PK 1 m…</p>'+
-    '<p style="font-size:11px;margin-top:8px">GPS ±'+Math.round(acc)+' m · <b>PK métrique uniquement</b></p></div>');
+    '<p style="font-size:14px;margin:0">⏳ Recherche du PK métrique…</p>'+
+    '<p style="font-size:11px;margin-top:8px">GPS ±'+Math.round(acc)+' m · résolution PK 1 m</p></div>');
 
   var done=false,started=Date.now();
   function run(){
@@ -1445,30 +1444,19 @@ function findNearest(){
     if(!_gpsLastRaw||_gpsAgeMs()>GPS_STALE_MS){
       done=true;openDetail('📍 PK le plus proche',_pkUnavailableMessage());return;
     }
-
-    /* Attendre que la source vectorielle PK métrique ait réellement chargé ses tuiles. */
-    if(!map.isSourceLoaded('pk_metric')&&Date.now()-started<6000){
+    if(!map.isSourceLoaded('pk_metric')&&Date.now()-started<4000){
       map.once('idle',run);
       return;
     }
-
+    done=true;
     var candidates=[];
     try{candidates=_metricRenderedCandidates(lat,lng);}catch(e){
-      console.warn('PK 1 m query:',e);
+      console.warn('pkm1-hit queryRenderedFeatures:',e);candidates=[];
     }
-
-    /* Deuxième passe après idle : les tuiles autour de la position peuvent
-       arriver quelques centaines de ms après le changement de zoom. */
-    if(!candidates.length&&Date.now()-started<6000){
-      setTimeout(run,250);
-      return;
-    }
-
-    done=true;
     _finishFindNearest(lat,lng,acc,candidates);
   }
   map.once('idle',run);
-  setTimeout(run,6000);
+  setTimeout(run,4000);
 }
 window.findNearest=findNearest;
 
@@ -1585,7 +1573,7 @@ function _finishFindNearest(lat,lng,acc,metricCandidates){
   html+='<div style="font-size:18px;font-weight:700;color:#cc0000">'+lbl+'</div>';
   html+='<div style="font-size:12px;color:#555">Voie : <b>'+c(p._voie||p.voie||'—')+'</b>'+
     (pkP.b?' (branche '+pkP.b.toUpperCase()+', côté '+pkP.s+' — Accès+PAM filtrés)':'')+'</div>';
-  html+='<div style="font-size:12px;color:#555;margin-top:4px">Source PK : <b>PK métrique 1 m</b> · aucun PK hectométrique utilisé</div>';
+  html+='<div style="font-size:12px;color:#555;margin-top:4px">Résolution PK : <b>1 m</b></div>';
   html+='<div style="font-size:12px;color:#555">Précision GPS : <b>±'+Math.round(acc)+' m</b></div>';
   html+='<div style="font-size:13px;font-weight:600;margin-top:4px">Distance GPS → PK : '+_dStr(npk.d)+'</div>';
   html+=zoomBtn(co,20,'→ Zoom sur ce PK');
