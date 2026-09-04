@@ -313,7 +313,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Cache-bust automatique sur changement de version ── */
 (function(){
-  var V='v3.73-force-pk1m';
+  var V='v3.74-strict-pk1m';
   try{
     if(location.search.indexOf('reset=1')!==-1)return;
     var s=localStorage.getItem('lgv_app_ver');
@@ -335,7 +335,7 @@ if(location.search.indexOf('reset=1')!==-1){
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.73-force-pk1m';
+var APP_VER = 'v3.74-strict-pk1m';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -1217,9 +1217,9 @@ function findNearest(){
     if(_wid!==null){navigator.geolocation.clearWatch(_wid);_wid=null;}
     map.flyTo({center:[lng,lat],zoom:Math.max(map.getZoom(),20.25),duration:800});
     var mdone=false;
-    function onReady(){if(mdone)return;mdone=true;map.off('idle',onReady);_finishFindNearest(lat,lng,acc);}
+    function onReady(){if(mdone)return;mdone=true;map.off('idle',onReady);_waitForStrictPK1m(lat,lng,8000).then(function(pk){_finishFindNearest(lat,lng,acc,pk);});}
     map.on('idle',onReady);
-    setTimeout(function(){if(!mdone){mdone=true;map.off('idle',onReady);_finishFindNearest(lat,lng,acc);}},4000);
+    setTimeout(function(){if(!mdone){mdone=true;map.off('idle',onReady);_waitForStrictPK1m(lat,lng,8000).then(function(pk){_finishFindNearest(lat,lng,acc,pk);});}},5000);
   }
 
   var _deadline=setTimeout(function(){
@@ -1325,21 +1325,64 @@ function _parseVoie(v){
   return{b:letters3.toLowerCase(),s:digit3};
 }
 
-function _findClosestPK1m(lat,lng,radius){
-  if(!map.getSource('pk_metric'))return null;
-  try{if(!map.isSourceLoaded('pk_metric'))return null;}catch(e){return null;}
-  var fs=[];try{fs=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'})||[];}catch(e){return null;}
-  var best=null,bd=Infinity,seen={};
-  fs.forEach(function(f){if(!f.geometry||f.geometry.type!=='Point')return;var co=f.geometry.coordinates,p=f.properties||{},key=(p._pk_label||p.pk||'')+'|'+co.join(',');if(seen[key])return;seen[key]=1;var d=_haversine(lat,lng,co[1],co[0]);if(d<=radius&&d<bd){bd=d;best={f:{props:p,geom:f.geometry},d:d};}});
-  return best;
+function _pkMetersStrict(props){
+  var raw=props&&(props._pk_label!=null?props._pk_label:props.pk);
+  if(raw==null)return null;
+  var txt=String(raw).trim(),m=txt.match(/(\d+)\s*\+\s*(\d{1,3})/);
+  if(m)return parseInt(m[1],10)*1000+parseInt(m[2],10);
+  var n=Number(txt);return isFinite(n)?Math.round(n):null;
 }
-function _finishFindNearest(lat,lng,acc){
-  var npk=_findClosestPK1m(lat,lng,2000),pkPrec=npk?'1m':'indisponible';
-  if(!npk&&map.getLayer('pkm1-hit')){
-    try{var pt=map.project([lng,lat]),ff=map.queryRenderedFeatures([[pt.x-260,pt.y-260],[pt.x+260,pt.y+260]],{layers:['pkm1-hit']})||[],bd=Infinity;
-      ff.forEach(function(f){if(!f.geometry||f.geometry.type!=='Point')return;var co=f.geometry.coordinates,d=_haversine(lat,lng,co[1],co[0]);if(d<=2000&&d<bd){bd=d;npk={f:{props:f.properties||{},geom:f.geometry},d:d};}});if(npk)pkPrec='1m';
-    }catch(e){}
-  }
+function _collectRenderedPK1m(lat,lng){
+  if(map.getZoom()<20||!map.getLayer('pkm1-hit'))return [];
+  var pt=map.project([lng,lat]),pad=300,fs=[];
+  try{fs=map.queryRenderedFeatures([[pt.x-pad,pt.y-pad],[pt.x+pad,pt.y+pad]],{layers:['pkm1-hit']})||[];}catch(e){return [];}
+  var seen={},out=[];
+  fs.forEach(function(f){
+    if(!f.geometry||f.geometry.type!=='Point')return;
+    var p=f.properties||{},m=_pkMetersStrict(p),co=f.geometry.coordinates;
+    if(m===null)return;
+    var key=String(m)+'|'+String(p._voie||p.voie||'');
+    if(seen[key])return;seen[key]=1;
+    out.push({f:{props:p,geom:f.geometry},meters:m,d:_haversine(lat,lng,co[1],co[0])});
+  });
+  return out;
+}
+function _findClosestPK1m(lat,lng,radius){
+  // Résultat final exclusivement issu de la couche rendue pkm1-hit au zoom >= 20.
+  // querySourceFeatures n'est volontairement pas utilisé, afin d'éviter les anciennes tuiles généralisées.
+  try{if(!map.getSource('pk_metric')||!map.isSourceLoaded('pk_metric'))return null;}catch(e){return null;}
+  var candidates=_collectRenderedPK1m(lat,lng).filter(function(x){return x.d<=radius;});
+  if(candidates.length<3)return null;
+  // Validation stricte de densité : il doit exister des PK voisins avec un écart de 1 m.
+  var byWay={};
+  candidates.forEach(function(x){var w=String(x.f.props._voie||x.f.props.voie||'');(byWay[w]||(byWay[w]=[])).push(x);});
+  var valid=[];
+  Object.keys(byWay).forEach(function(w){
+    var arr=byWay[w].sort(function(a,b){return a.meters-b.meters;});
+    for(var i=0;i<arr.length;i++){
+      var prev=i>0?arr[i].meters-arr[i-1].meters:9999;
+      var next=i<arr.length-1?arr[i+1].meters-arr[i].meters:9999;
+      if(prev===1||next===1)valid.push(arr[i]);
+    }
+  });
+  if(!valid.length)return null;
+  valid.sort(function(a,b){return a.d-b.d;});
+  return{f:valid[0].f,d:valid[0].d};
+}
+function _waitForStrictPK1m(lat,lng,maxWait){
+  return new Promise(function(resolve){
+    var t0=Date.now();
+    function test(){
+      var r=_findClosestPK1m(lat,lng,2000);
+      if(r){resolve(r);return;}
+      if(Date.now()-t0>=maxWait){resolve(null);return;}
+      setTimeout(test,300);
+    }
+    test();
+  });
+}
+function _finishFindNearest(lat,lng,acc,strictPK){
+  var npk=strictPK||null,pkPrec=npk?'1m valide':'indisponible';
   /* Détecter branche + côté depuis la voie du PK le plus proche */
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
   var voieN=_sideNum(pkVoie);     /* '1' ou '2' – pour affichage */
@@ -1396,7 +1439,7 @@ function _finishFindNearest(lat,lng,acc){
     html+='<div style="font-size:13px;font-weight:600;margin-top:4px">'+_dStr(npk.d)+'</div>';
     html+=zoomBtn(co,18,'→ Zoom sur ce PK');
     html+='</div>';
-  }else{html+='<div style="padding:8px;color:#aaa">PK 1 m indisponible : aucun résultat ne sera calculé depuis les couches 100 m ou 1 km</div>';}
+  }else{html+='<div style="padding:8px;color:#aaa">PK 1 m indisponible : densité métrique non validée. Aucun PK 100 m ou 1 km utilisé</div>';}
 
   if(naccs.length){
     naccs.forEach(function(nacc,i){
