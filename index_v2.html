@@ -311,31 +311,23 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* ── Cache-bust automatique sur changement de version ── */
+/* ── Version applicative sans boucle de rechargement ── */
 (function(){
-  var V='v3.70';
+  var V='v3.71';
   try{
-    if(location.search.indexOf('reset=1')!==-1)return;
-    var s=localStorage.getItem('lgv_app_ver');
+    var previous=localStorage.getItem('lgv_app_ver');
     localStorage.setItem('lgv_app_ver',V);
-    if(s&&s!==V){location.replace(location.pathname+'?reset=1');}
+    /* Une nouvelle version ne doit jamais forcer un reload automatique.
+       Le service worker actualise ses ressources sans interrompre la carte. */
+    if(previous && previous!==V) sessionStorage.setItem('lgv_update_notice','1');
   }catch(e){}
 })();
-/* ── Force-reset via ?reset=1 : vide caches + SW + localStorage lgv_* ── */
-if(location.search.indexOf('reset=1')!==-1){
-  (async function(){
-    try{var keys=await caches.keys();await Promise.all(keys.map(function(k){return caches.delete(k);}));}catch(e){}
-    try{var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}catch(e){}
-    try{Object.keys(localStorage).filter(function(k){return k.startsWith('lgv_');}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
-    location.replace(location.pathname+'?_cb='+Date.now());
-  })();
-}
 </script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.70';
+var APP_VER = 'v3.71';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -2003,20 +1995,23 @@ window.warmOfflineCache=warmOfflineCache;
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     updateNetBadge();
-    var reloading=false;
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
     .then(function(reg){
-      updateNetBadge();reg.update();
+      updateNetBadge();
+      /* Contrôle ponctuel, sans setInterval et sans reload automatique. */
+      reg.update().catch(function(){});
       reg.addEventListener('updatefound',function(){
         var w=reg.installing;if(!w)return;
         w.addEventListener('statechange',function(){
-          if(w.state==='installed'||w.state==='activating')w.postMessage({type:'SKIP_WAITING'});
+          if(w.state==='installed' && navigator.serviceWorker.controller){
+            showNetToast('✅ Mise à jour prête. Elle sera appliquée au prochain démarrage.');
+          }
         });
       });
-      setInterval(function(){reg.update();},10*60*1000);
     }).catch(function(e){console.warn('SW:',e);});
+    /* Ne jamais recharger ici : controllerchange peut sinon provoquer une boucle. */
     navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if(!reloading){reloading=true;window.location.reload();}
+      updateNetBadge();
     });
   });
 }
