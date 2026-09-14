@@ -313,7 +313,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Version applicative sans boucle de rechargement ── */
 (function(){
-  var V='v3.71';
+  var V='v3.72';
   try{
     var previous=localStorage.getItem('lgv_app_ver');
     localStorage.setItem('lgv_app_ver',V);
@@ -327,7 +327,7 @@ button,a,[onclick]{touch-action:manipulation}
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.71';
+var APP_VER = 'v3.72';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -1108,33 +1108,28 @@ function _ensureGpsLayers(){
 }
 function _gpsAccept(pos){
   var c=pos.coords,lat=+c.latitude,lng=+c.longitude,acc=+c.accuracy,ts=+pos.timestamp||Date.now();
-  if(!isFinite(lat)||!isFinite(lng)||!isFinite(acc)||acc<=0||acc>1000||Date.now()-ts>10000)return null;
+  if(!isFinite(lat)||!isFinite(lng)||!isFinite(acc)||acc<=0||acc>500||Date.now()-ts>15000)return null;
   var raw={lat:lat,lng:lng,accuracy:acc,timestamp:ts,speed:isFinite(+c.speed)?Math.max(0,+c.speed):null,heading:isFinite(+c.heading)?+c.heading:null};
+  /* Filtre uniquement les téléportations manifestes. Le point reste réactif pendant le déplacement. */
   if(_gpsLastAccepted){
-    var dt=Math.max(.2,(ts-_gpsLastAccepted.timestamp)/1000),d=_haversine(_gpsLastAccepted.lat,_gpsLastAccepted.lng,lat,lng);
-    var plausible=Math.max(35,acc*2.5,_gpsLastAccepted.accuracy*2.5,((_gpsLastAccepted.speed||raw.speed||0)*dt)+35);
-    if(d>plausible&&acc>=_gpsLastAccepted.accuracy)return null;
+    var dt=Math.max(.2,(ts-_gpsLastAccepted.timestamp)/1000);
+    var d=_haversine(_gpsLastAccepted.lat,_gpsLastAccepted.lng,lat,lng);
+    var maxD=Math.max(80,acc*3,_gpsLastAccepted.accuracy*3,((raw.speed||_gpsLastAccepted.speed||0)*dt)+60);
+    if(d>maxD && acc>=_gpsLastAccepted.accuracy)return null;
   }
-  _gpsRecent.push(raw);
-  _gpsRecent=_gpsRecent.filter(function(x){return ts-x.timestamp<=8000;}).slice(-8);
-  // Une excellente mesure GPS ne doit pas être dégradée par les anciennes positions.
-  var better=_gpsRecent.filter(function(x){return x.accuracy<=Math.max(12,acc*1.6);});
-  if(acc<=12||better.length<2){_gpsLastAccepted=raw;return raw;}
-  // Moyenne pondérée par précision et fraîcheur, plus réactive qu'une médiane glissante.
-  var sw=0,slat=0,slng=0;
-  better.forEach(function(x){var age=Math.max(0,ts-x.timestamp)/1000,w=Math.exp(-age/2.5)/Math.max(9,x.accuracy*x.accuracy);sw+=w;slat+=x.lat*w;slng+=x.lng*w;});
-  var p={lat:slat/sw,lng:slng/sw,accuracy:acc,timestamp:ts,speed:raw.speed,heading:raw.heading};
-  _gpsLastAccepted=p;return p;
+  _gpsLastAccepted=raw;
+  return raw;
 }
 function _drawGps(p,force){
   _ensureGpsLayers();
-  map.getSource('_gpsPoint').setData({type:'Feature',properties:{accuracy:p.accuracy},geometry:{type:'Point',coordinates:[p.lng,p.lat]}});
+  map.getSource('_gpsPoint').setData({type:'Feature',properties:{accuracy:p.accuracy,heading:p.heading},geometry:{type:'Point',coordinates:[p.lng,p.lat]}});
   map.getSource('_gpsCircle').setData(_gpsCircle(p.lng,p.lat,Math.max(3,p.accuracy)));
   var now=Date.now();
-  if(_gpsFollowing&&(force||now-_gpsLastDraw>700)){
+  /* Suivi continu : chaque nouvelle mesure déplace le point et recentre la carte sans animation retardée. */
+  if(_gpsFollowing&&(force||now-_gpsLastDraw>200)){
     _gpsLastDraw=now;
-    var z=p.accuracy<=10?20:p.accuracy<=20?19:p.accuracy<=40?18:p.accuracy<=80?17:16;
-    map.easeTo({center:[p.lng,p.lat],zoom:Math.max(map.getZoom(),z),duration:500,essential:true});
+    var targetZoom=p.accuracy<=10?19:p.accuracy<=25?18.5:p.accuracy<=50?18:17;
+    map.jumpTo({center:[p.lng,p.lat],zoom:Math.max(map.getZoom(),targetZoom)});
   }
 }
 function _setLocateButton(){var b=document.getElementById('locate-btn');if(!b)return;b.style.background=_gpsWatch===null?'white':(_gpsFollowing?'#4285f4':'#dbeafe');b.style.color=_gpsWatch===null?'#111':(_gpsFollowing?'white':'#1565c0');b.title=_gpsFollowing?'Suivi GPS actif, appuyer pour libérer la carte':'Position active, appuyer pour recentrer';}
@@ -1152,7 +1147,7 @@ function locateMe(){
   else{_gpsFollowing=!_gpsFollowing;if(_gpsFollowing&&_gpsLastAccepted)_drawGps(_gpsLastAccepted,true);_setLocateButton();showNetToast(_gpsFollowing?'📍 Suivi temps réel actif':'📍 Position active, carte libre');}
 }
 window.locateMe=locateMe;window.startLiveLocation=startLiveLocation;window.stopLiveLocation=stopLiveLocation;
-map.on('dragstart',function(){if(_gpsWatch!==null){_gpsFollowing=false;_setLocateButton();}});
+/* Le déplacement manuel ne coupe plus le suivi. Utiliser le bouton GPS pour libérer/reprendre la carte. */
 map.once('load',function(){
   _setLocateButton();if(!navigator.geolocation||_gpsAutoStarted)return;_gpsAutoStarted=true;
   var mobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(!mobile)return;
