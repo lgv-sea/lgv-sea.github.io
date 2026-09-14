@@ -313,7 +313,7 @@ button,a,[onclick]{touch-action:manipulation}
 <script>
 /* ── Version applicative sans boucle de rechargement ── */
 (function(){
-  var V='v3.73';
+  var V='v3.74';
   try{
     var previous=localStorage.getItem('lgv_app_ver');
     localStorage.setItem('lgv_app_ver',V);
@@ -327,7 +327,7 @@ button,a,[onclick]{touch-action:manipulation}
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.73';
+var APP_VER = 'v3.74';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -1330,19 +1330,46 @@ function _parseVoie(v){
   return{b:letters3.toLowerCase(),s:digit3};
 }
 
-function _finishFindNearest(lat,lng,acc){
+function _finishFindNearest(lat,lng,acc,_metricRetry){
   var npk=null,pkPrec='PK 1m';
-  console.log('_finishFindNearest: lat='+lat.toFixed(5)+' lng='+lng.toFixed(5));
+  console.log('_finishFindNearest: lat='+lat.toFixed(5)+' lng='+lng.toFixed(5)+' retry='+!!_metricRetry);
 
-  /* Source unique et obligatoire : PK métriques 1 m. Aucun repli PK 100 m / 1 km. */
-  var metric=_nearestMetricAt(lat,lng,Math.max(250,acc*4));
+  /* Distance à la LGV estimée avec le référentiel hectométrique, toujours chargé. */
+  var nearH=null;
+  if(_pkHData&&_pkHData.features&&_pkHData.features.length){
+    nearH=_nearestOf(lat,lng,_pkHData.features.map(function(f){return{props:f.properties,geom:f.geometry};}));
+  }
+  var distLGV=nearH?nearH.d:Infinity;
+  var CLOSE_TO_LGV=500; /* À 500 m ou moins, résultat obligatoirement issu du PK 1 m. */
+
+  /* Cherche assez loin dans les tuiles métriques déjà chargées. */
+  var metric=_nearestMetricAt(lat,lng,Math.max(600,acc*5));
   if(metric){
     npk={f:{props:metric.props,geom:metric.geom},d:metric.d};
+    pkPrec='PK 1m';
+  }else if(distLGV<=CLOSE_TO_LGV && !_metricRetry){
+    /* À 200 m, la voie peut être hors écran à z18. On cadre le GPS ET la LGV,
+       ce qui force le chargement de la bonne tuile pk_metric, puis on réessaie. */
+    var hc=nearH.f.geom.coordinates;
+    var done=false;
+    function retryMetric(){
+      if(done)return;done=true;map.off('idle',retryMetric);
+      _finishFindNearest(lat,lng,acc,true);
+    }
+    map.fitBounds([[Math.min(lng,hc[0]),Math.min(lat,hc[1])],[Math.max(lng,hc[0]),Math.max(lat,hc[1])]],
+      {padding:80,maxZoom:18,duration:500});
+    map.on('idle',retryMetric);
+    setTimeout(retryMetric,3000);
+    return;
+  }else if(distLGV>CLOSE_TO_LGV && nearH){
+    /* Loin de la LGV seulement : repli explicite sur le PK 100 m. */
+    npk=nearH;
+    pkPrec='PK 100m (hors proximité LGV)';
   }else{
     openDetail('📍 PK métrique indisponible',
       '<div style="padding:16px;line-height:1.5">'+
-      '<b>Aucun PK 1 m chargé autour de la position.</b><br>'+
-      '<span style="color:#666">Zoomez à 18 ou 19, vérifiez le fichier <code>data/pk_metric.pmtiles</code>, puis relancez PK?. Aucun résultat PK 100 m approximatif n’est affiché.</span></div>');
+      '<b>Vous êtes à environ '+(isFinite(distLGV)?Math.round(distLGV)+' m':'une distance inconnue')+' de la LGV.</b><br>'+
+      '<span style="color:#666">La zone est considérée proche : aucun PK 100 m approximatif n’est utilisé. Vérifiez le chargement de <code>data/pk_metric.pmtiles</code>.</span></div>');
     return;
   }
 
