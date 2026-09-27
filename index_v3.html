@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Permissions-Policy" content="geolocation=(self)">
-<title>Carte LGV SEA v4.13 — GPS direct Firefox / Samsung A56</title>
+<title>Carte LGV SEA v3</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preload" as="fetch" href="data/rail.geojson" crossorigin="anonymous">
 <link rel="preload" as="fetch" href="data/pk.geojson" crossorigin="anonymous">
@@ -31,6 +30,7 @@ button,a,[onclick]{touch-action:manipulation}
   border:4px solid #eee;border-top:4px solid #cc0000;border-radius:50%;
   animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* MapLibre overrides */
 .maplibregl-canvas-container{cursor:default}
 .maplibregl-map{font-family:"Segoe UI",Arial,sans-serif}
 .maplibregl-ctrl-attrib{font-size:10px}
@@ -42,10 +42,12 @@ button,a,[onclick]{touch-action:manipulation}
 .mlpop td:first-child{font-weight:600;color:#666;white-space:nowrap;width:80px}
 .hover-tip{background:rgba(26,26,46,.88);color:white;font-size:11.5px;font-weight:600;
   padding:3px 8px;border-radius:4px;pointer-events:none;white-space:nowrap}
+/* Popup photo */
 .mlpop img{width:100%;border-radius:5px;margin-top:8px;cursor:zoom-in;transition:transform .2s}
 .mlpop img:hover{transform:scale(1.03)}
 .btn-sp{display:block;margin-top:7px;text-align:center;background:#0078d4;color:white!important;
   padding:5px 10px;border-radius:5px;text-decoration:none;font-size:11.5px;font-weight:600}
+/* Panneau couches */
 #layers-panel{position:absolute;top:60px;left:0;z-index:800;background:white;
   border-radius:0 8px 8px 0;box-shadow:2px 2px 12px rgba(0,0,0,.25);
   transition:transform .25s;transform:translateX(-100%);width:230px;will-change:transform}
@@ -61,9 +63,12 @@ button,a,[onclick]{touch-action:manipulation}
 .bm-btn{flex:1;min-width:60px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;
   padding:5px 4px;font-size:11px;cursor:pointer;text-align:center;transition:background .15s}
 .bm-btn.active{background:#1a1a2e;color:white;border-color:#1a1a2e}
+/* Bouton ouvrir panneau */
 #layers-btn{position:absolute;top:60px;left:0;z-index:799;background:#1a1a2e;color:white;
   border:none;border-radius:0 6px 6px 0;padding:8px 10px;cursor:pointer;font-size:18px;
   box-shadow:2px 2px 8px rgba(0,0,0,.3)}
+/* Bouton localiser – dans la FAB bar */
+/* Barre recherche */
 #search-wrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
   width:320px;max-width:90vw}
 #search-input{width:100%;padding:8px 14px;border-radius:20px;border:none;
@@ -74,6 +79,7 @@ button,a,[onclick]{touch-action:manipulation}
   display:flex;gap:10px;align-items:center}
 .sr-item:hover{background:#f5f5f5}
 .sr-badge{font-size:10px;background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:10px;white-space:nowrap}
+/* Table */
 #tbl-panel{position:absolute;bottom:0;left:0;right:0;height:0;background:white;z-index:900;
   transition:height .3s;box-shadow:0 -4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column}
 #tbl-panel.open{height:40vh;min-height:200px}
@@ -90,6 +96,7 @@ button,a,[onclick]{touch-action:manipulation}
 #tbl-scroll tr:hover td{background:#f9fbe7}
 .tbl-zoom{cursor:pointer;background:#e3f2fd;border:none;border-radius:3px;padding:2px 6px;
   font-size:11px;color:#1565c0}
+/* FAB */
 #fab-bar{position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+10px));right:10px;
   z-index:800;display:flex;flex-direction:column;gap:6px}
 .fab{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
@@ -100,38 +107,17 @@ button,a,[onclick]{touch-action:manipulation}
 #offline-btn[data-state="ready"]::after{content:"✓";position:absolute;bottom:-2px;right:-2px;
   background:#2e7d32;color:white;font-size:8px;width:12px;height:12px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-weight:700}
-
-#gps-marker-dot{
-  width:18px;height:18px;border-radius:50%;
-  background:#4285f4;border:3px solid #fff;
-  box-shadow:0 1px 5px rgba(0,0,0,.45);
-  transform:translateZ(0);
-  will-change:transform;
-  pointer-events:none;
-}
-#gps-marker-dot::after{
-  content:"";position:absolute;inset:-5px;border-radius:50%;
-  border:2px solid rgba(66,133,244,.28);
-  pointer-events:none;
-}
-
-#gps-status{position:absolute;left:10px;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+10px));
-  z-index:801;background:rgba(255,255,255,.96);color:#1a1a2e;border-radius:10px;
-  box-shadow:0 2px 12px rgba(0,0,0,.25);padding:7px 10px;min-width:158px;
-  font-size:10.5px;line-height:1.35;display:none;pointer-events:none}
-#gps-status .gps-title{font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
-#gps-status .gps-line{margin-top:2px;white-space:nowrap;font-variant-numeric:tabular-nums}
-#gps-status .gps-good{color:#2e7d32;font-weight:700}
-#gps-status .gps-mid{color:#ef6c00;font-weight:700}
-#gps-status .gps-bad{color:#c62828;font-weight:700}
+/* Toast */
 #net-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:10000;
   background:rgba(26,26,46,.9);color:white;padding:7px 18px;border-radius:20px;
   font-size:12.5px;display:none;pointer-events:none;white-space:nowrap;transition:opacity .3s}
+/* Lightbox */
 #lightbox{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,.92);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:10px}
 #lightbox.open{display:flex}
 #lightbox img{max-width:98vw;max-height:92vh;border-radius:4px;object-fit:contain;image-rendering:auto}
 #lb-hint{color:rgba(255,255,255,.55);font-size:11px;pointer-events:none}
+/* Detail panel */
 #dp-backdrop{display:none;position:fixed;inset:0;z-index:899;background:transparent;pointer-events:none}
 #dp-backdrop.open{display:block;pointer-events:auto}
 #detail-panel{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:92vw;background:white;
@@ -170,13 +156,16 @@ button,a,[onclick]{touch-action:manipulation}
   border:1px solid #c5e1a5;border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#33691e;cursor:pointer}
 .dpj-empty{color:#ccc;font-size:11.5px;padding:2px 0}
 .pj-del{background:#ffebee;border:none;border-radius:3px;padding:2px 7px;cursor:pointer;color:#c62828;font-size:11px}
+/* KML modal */
 #kml-choice-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,.55);z-index:9500;align-items:center;justify-content:center}
 #kml-choice-modal.open{display:flex}
 .kml-del{background:#ffebee;border:none;border-radius:3px;padding:2px 7px;cursor:pointer;color:#c62828;font-size:11px;margin-left:auto;flex-shrink:0}
+/* Load status */
 #load-status{display:none;position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+20px));left:50%;transform:translateX(-50%);
   z-index:802;background:rgba(26,26,46,.9);color:white;padding:5px 16px;border-radius:16px;
   font-size:11.5px;white-space:nowrap;pointer-events:none}
+/* Légende */
 .lgv-legend-wrap{position:relative;display:flex;flex-direction:column;pointer-events:auto}
 .lgv-legend-hdr{display:none;align-items:center;gap:6px;background:white;padding:6px 10px;
   border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;color:#1a1a2e;
@@ -191,14 +180,18 @@ button,a,[onclick]{touch-action:manipulation}
 .li{display:flex;align-items:center;gap:7px;margin:3px 0;line-height:1.3}
 .lc{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1px solid rgba(0,0,0,.15)}
 .ll{width:20px;height:3px;flex-shrink:0;border-radius:2px}
+/* Drag handle detail panel */
 #dp-drag-handle{display:none;height:34px;background:#1a1a2e;flex-shrink:0;
   align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px;
   touch-action:none;user-select:none;-webkit-user-select:none}
 #dp-drag-handle::before{content:'';width:48px;height:5px;border-radius:3px;background:rgba(255,255,255,.4)}
 #dp-drag-handle::after{content:'▾';color:rgba(255,255,255,.5);font-size:12px;line-height:1}
 #detail-panel.dp-full #dp-drag-handle::after{content:'▴'}
+/* FAB secondary (masqués sur mobile) */
 #fab-toggle{display:none}
+/* Mobile */
 @media(max-width:768px){
+  /* Panneau détail : compact par défaut, plein si dp-full */
   #detail-panel{position:fixed;width:100%;max-width:100%;top:auto;height:44vh;
     transform:translateY(100%);box-shadow:0 -4px 20px rgba(0,0,0,.2);
     transition:transform .3s cubic-bezier(.4,0,.2,1), height .3s cubic-bezier(.4,0,.2,1)}
@@ -207,8 +200,10 @@ button,a,[onclick]{touch-action:manipulation}
   #detail-body{padding-bottom:env(safe-area-inset-bottom,0px)}
   #dp-drag-handle{display:flex}
   #dp-backdrop.open{background:rgba(0,0,0,.25)}
+  /* Prevent iOS zoom on input focus */
   #search-input{font-size:16px;padding:9px 12px}
   #tbl-header input{font-size:16px}
+  /* Safe area pour notch / Dynamic Island / navigation Android */
   #search-wrap{left:44px;width:calc(100vw - 110px);transform:none;
     top:max(8px,calc(env(safe-area-inset-top,0px) + 4px))}
   #layers-btn{top:max(10px,calc(env(safe-area-inset-top,0px) + 6px));
@@ -227,13 +222,16 @@ button,a,[onclick]{touch-action:manipulation}
   #tbl-close{font-size:22px;padding:0 4px}
   #tbl-scroll table{font-size:12px}
   #tbl-scroll th,#tbl-scroll td{padding:6px 8px}
+  /* FAB secondaires masqués – affichés via toggle */
   .fab-secondary{display:none}
   #fab-toggle{display:flex}
   #fab-bar.expanded .fab-secondary{display:flex}
   #fab-toggle.active{background:#1a1a2e;color:white}
+  /* Texte panneau détail */
   .dp-k{font-size:11.5px;min-width:80px;width:80px}
   .dp-v{font-size:12.5px}
   .dp-main{font-size:14px}
+  /* Légende : cachée par défaut, s'étend VERS LE HAUT (ctrl en bas de l'écran) */
   .lgv-legend-hdr{display:flex}
   .lgv-legend{display:none;order:-1;margin-bottom:4px;max-height:50vh;overflow-y:auto}
   .lgv-legend-wrap.open .lgv-legend{display:block}
@@ -243,31 +241,6 @@ button,a,[onclick]{touch-action:manipulation}
   .fab{width:44px;height:44px;font-size:18px}
 }
 </style>
-
-<script>
-/* v4.12 : aucune position GPS persistée et aucun ancien Service Worker ne doit
-   pouvoir servir une ancienne version de l'application. */
-(function(){
-  try{
-    ['lgv_map_pos','gps_last','gps_last_position','lgv_gps_last','lgv_position',
-     'lgv_last_position','lgv_last_gps'].forEach(function(k){
-      localStorage.removeItem(k);
-      sessionStorage.removeItem(k);
-    });
-  }catch(e){}
-
-  try{
-    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){
-      navigator.serviceWorker.getRegistrations().then(function(regs){
-        regs.forEach(function(reg){
-          try{reg.unregister();}catch(e){}
-        });
-      }).catch(function(){});
-    }
-  }catch(e){}
-})();
-</script>
-
 </head>
 <body>
 <div id="loader">Chargement des données LGV SEA…</div>
@@ -299,12 +272,11 @@ button,a,[onclick]{touch-action:manipulation}
   background:rgba(26,26,46,.75);color:rgba(255,255,255,.55);font-size:9.5px;
   padding:2px 6px;border-radius:8px;pointer-events:none;letter-spacing:.3px"></div>
 <div id="net-toast"></div>
-<div id="gps-status"></div>
 <div id="load-status"></div>
 <div id="fab-bar">
   <button id="install-btn" class="fab fab-white" style="display:none" title="Installer l'application" onclick="installApp()">📲</button>
   <button id="offline-btn" class="fab fab-white fab-secondary" title="Mettre en cache hors-ligne" onclick="warmOfflineCache()">📶</button>
-  <button id="locate-btn" class="fab fab-white" title="Activer le suivi GPS en temps réel" onclick="locateMe()">📍</button>
+  <button class="fab fab-white" title="Me localiser" onclick="locateMe()">📍</button>
   <button class="fab fab-white" title="PK / Accès / PAM le plus proche" onclick="findNearest()" style="background:#cc0000;color:white;font-size:14px;font-weight:700">PK?</button>
   <button class="fab fab-white" title="Vue d'ensemble LGV SEA" onclick="resetView()">🏠</button>
   <button class="fab fab-white fab-secondary" title="Table attributaire" onclick="toggleTable()">📋</button>
@@ -339,37 +311,50 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* ── Version applicative ── */
-var APP_VER = 'v4.14-firefox-android-reference-gps';
-var _mapReady=false;
+/* ── Cache-bust automatique sur changement de version ── */
 (function(){
+  var V='v3.70-gps1m';
   try{
-    var previous=localStorage.getItem('lgv_app_ver');
-    localStorage.setItem('lgv_app_ver',APP_VER);
-    if(previous && previous!==APP_VER) sessionStorage.setItem('lgv_update_notice','1');
+    if(location.search.indexOf('reset=1')!==-1)return;
+    var s=localStorage.getItem('lgv_app_ver');
+    localStorage.setItem('lgv_app_ver',V);
+    if(s&&s!==V){location.replace(location.pathname+'?reset=1');}
   }catch(e){}
 })();
+/* ── Force-reset via ?reset=1 : vide caches + SW + localStorage lgv_* ── */
+if(location.search.indexOf('reset=1')!==-1){
+  (async function(){
+    try{var keys=await caches.keys();await Promise.all(keys.map(function(k){return caches.delete(k);}));}catch(e){}
+    try{var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}catch(e){}
+    try{Object.keys(localStorage).filter(function(k){return k.startsWith('lgv_');}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
+    location.replace(location.pathname+'?_cb='+Date.now());
+  })();
+}
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
+// ═══════════════════════════════════════════════════════════
+var APP_VER = 'v3.70-gps1m';
 
-/* ── Pré-chargement PK avant init map ── */
+// ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
   .then(function(r){if(!r.ok)throw new Error('pk HTTP '+r.status);return r.json();})
   .then(function(d){_pkPrefetch=d;if(_pkMapReady)_setupPKLayers(d);})
   .catch(function(e){console.warn('PK prefetch:',e);_loading.pk=false;});
 
-/* ── PMTiles protocol ── */
-var _pkMetricBase = new URL('data/pk_metric.pmtiles?v='+APP_VER, document.baseURI).href;
+// ── PMTiles protocol ──
+var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=3', document.baseURI).href;
 var _pmProtocol = new pmtiles.Protocol();
-var _pkMetricArchive = new pmtiles.PMTiles(_pkMetricBase);
-_pmProtocol.add(_pkMetricArchive);
 maplibregl.addProtocol('pmtiles', _pmProtocol.tile.bind(_pmProtocol));
 
-/* ── Helpers ── */
+// ── Helpers ──
 function c(v){return(v===null||v===undefined||String(v).match(/^(nan|NaN|None|null|undefined)$/i))?"":String(v)}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function row(k,v){v=c(v);return v?"<tr><td>"+k+"</td><td>"+v+"</td></tr>":""}
 
-/* ── PK layer helpers ── */
+// ── PK layer helpers (module-level, used in _loadAllData) ──
 function _addPkCircle(id,src,minz,maxz,r,color){
   map.addLayer({id:id,type:'circle',source:src,minzoom:minz,maxzoom:maxz||22,
     paint:{'circle-radius':r,'circle-color':color,'circle-stroke-width':2,
@@ -384,7 +369,7 @@ function _addPkLabel(id,src,minz,maxz,size,offset){
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 }
 
-/* ── Source PK unique + couches filtrées ── */
+// ── Création source PK unique + couches filtrées (MapLibre GL v4 – source inline garantie) ──
 function _setupPKLayers(d){
   var all=d.features||[];
   layerData.pk=all.map(function(f){return{props:f.properties,geom:f.geometry};});
@@ -395,6 +380,7 @@ function _setupPKLayers(d){
     return m?parseInt(m[1],10)*1000+parseInt(m[2],10):-1;
   }
 
+  // Calcule _pk_class pour chaque feature (filtre par couche → source unique)
   var features=all.map(function(f){
     var m=pkMeters(f), cls='';
     if(m>=0&&m%50000===0)cls='50';
@@ -406,8 +392,9 @@ function _setupPKLayers(d){
   var n50=features.filter(function(f){return f.properties._pk_class==='50';}).length;
   var n10=features.filter(function(f){return f.properties._pk_class==='10';}).length;
   var n1 =features.filter(function(f){return f.properties._pk_class==='1';}).length;
-  console.log('PK: total='+all.length+' | 50km='+n50+' | 10km='+n10+' | 1km='+n1);
+  console.log('PK v3.30: total='+all.length+' | 50km='+n50+' | 10km='+n10+' | 1km='+n1);
 
+  // Supprimer couches et sources précédentes
   ['pk50-lbl','pk50-c','pk10-lbl','pk10-c','pk1-lbl','pk1-c'].forEach(function(id){
     try{if(map.getLayer(id))map.removeLayer(id);}catch(e){}
   });
@@ -417,6 +404,7 @@ function _setupPKLayers(d){
 
   map.addSource('pk_all',{type:'geojson',data:fc});
 
+  // pk50 : z7→10, cercles rouges
   map.addLayer({id:'pk50-c',type:'circle',source:'pk_all',minzoom:7,maxzoom:10,
     filter:['==','_pk_class','50'],
     paint:{'circle-radius':9,'circle-color':'#cc0000','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -424,9 +412,10 @@ function _setupPKLayers(d){
     filter:['==','_pk_class','50'],
     layout:{'text-field':['get','_pk_label'],'text-size':12,
       'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
-      'text-offset':[0,-1.6],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
+      'text-offset':[0,-1.6],'text-anchor':'bottom','text-allow-overlap':true,'text-ignore-placement':true},
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 
+  // pk10 : z10→13, cercles gris foncé
   map.addLayer({id:'pk10-c',type:'circle',source:'pk_all',minzoom:10,maxzoom:13,
     filter:['==','_pk_class','10'],
     paint:{'circle-radius':6,'circle-color':'#555','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -434,9 +423,10 @@ function _setupPKLayers(d){
     filter:['==','_pk_class','10'],
     layout:{'text-field':['get','_pk_label'],'text-size':10,
       'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
-      'text-offset':[0,-1.4],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
+      'text-offset':[0,-1.4],'text-anchor':'bottom','text-allow-overlap':true,'text-ignore-placement':true},
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 
+  // pk1 : z13→15, cercles noirs fins
   map.addLayer({id:'pk1-c',type:'circle',source:'pk_all',minzoom:13,maxzoom:15,
     filter:['==','_pk_class','1'],
     paint:{'circle-radius':4,'circle-color':'#333','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -444,7 +434,7 @@ function _setupPKLayers(d){
     filter:['==','_pk_class','1'],
     layout:{'text-field':['get','_pk_label'],'text-size':9,
       'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
-      'text-offset':[0,-1.3],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
+      'text-offset':[0,-1.3],'text-anchor':'bottom','text-allow-overlap':true,'text-ignore-placement':true},
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 
   setVis('pk',_vis.pk);
@@ -453,6 +443,7 @@ function _setupPKLayers(d){
   addPKtoIndex({type:'FeatureCollection',features:features});
 }
 
+// ── Geometry helpers ──
 function geomBounds(geom){
   var mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinity;
   function sc(a){if(typeof a[0]==="number"){if(a[0]<mnx)mnx=a[0];if(a[1]<mny)mny=a[1];if(a[0]>mxx)mxx=a[0];if(a[1]>mxy)mxy=a[1];}else a.forEach(sc);}
@@ -461,67 +452,23 @@ function geomBounds(geom){
 }
 function emptyFC(){return{type:"FeatureCollection",features:[]};}
 
-/* ── MapLibre map ──
-   v4.12 : Fond de carte par défaut = Orthophoto IGN (Géoplateforme)
-   → aucune clé API requise, couverture France métropolitaine excellente.
-   Esri World Imagery reste disponible via le bouton "Satellite Esri"
-   et utilise l'endpoint classique documenté par Esri `services.arcgisonline.com`. */
+// ── MapLibre map ──
 var map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      'bm-sat': {
-        type:'raster',
-        tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize:256,
-        attribution:'© Esri World Imagery',
-        maxzoom:19,
-        fadeDuration:0
-      },
-      'bm-sat-labels': {
-        type:'raster',
-        tiles:[
-          'https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png',
-          'https://b.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png',
-          'https://c.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png'
-        ],
-        tileSize:512,
-        attribution:'© CARTO / © OpenStreetMap contributors',
-        maxzoom:20,
-        fadeDuration:0
-      },
-      'bm-ortho': {
-        type:'raster',
-        tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
-        tileSize:256,
-        attribution:'© IGN – Géoplateforme',
-        maxzoom:19,
-        fadeDuration:0
-      },
-      'bm-plan': {
-        type:'raster',
-        tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
-        tileSize:256,
-        attribution:'© IGN – Géoplateforme',
-        maxzoom:19
-      },
-      'bm-osm': {
-        type:'raster',
-        tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize:256,
-        attribution:'© OpenStreetMap contributors',
-        maxzoom:19
-      }
+      'bm-sat': {type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri World Imagery',maxzoom:19},
+      'bm-sat-ref': {type:'raster',tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}','https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri, HERE, Garmin, © OpenStreetMap contributors',maxzoom:20,fadeDuration:0},
+      'bm-osm': {type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap',maxzoom:19},
+      'bm-ign': {type:'raster',tiles:['https://wxs.ign.fr/decouverte/geoportail/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],tileSize:256,attribution:'© IGN Géoportail',maxzoom:18}
     },
     layers: [
-      /* Ortho IGN = défaut (aucune clé API) ; Esri = opt-in utilisateur. */
-      {id:'bm-sat',type:'raster',source:'bm-sat',layout:{visibility:'none'}},
-      {id:'bm-sat-labels',type:'raster',source:'bm-sat-labels',layout:{visibility:'visible'}},
-      {id:'bm-ortho',type:'raster',source:'bm-ortho',layout:{visibility:'visible'}},
-      {id:'bm-osm',type:'raster',source:'bm-osm',layout:{visibility:'none'}},
-      {id:'bm-plan',type:'raster',source:'bm-plan',layout:{visibility:'none'}}
+      {id:'bm-sat',    type:'raster',source:'bm-sat',    layout:{visibility:'visible'}},
+      {id:'bm-sat-ref',type:'raster',source:'bm-sat-ref',layout:{visibility:'visible'}},
+      {id:'bm-osm',   type:'raster',source:'bm-osm',    layout:{visibility:'none'}},
+      {id:'bm-ign',   type:'raster',source:'bm-ign',    layout:{visibility:'none'}}
     ]
   },
   center: [0.15, 46.15],
@@ -529,57 +476,38 @@ var map = new maplibregl.Map({
   maxZoom: 21,
   attributionControl: {compact:true}
 });
+// Navigation (+/-) en bas à gauche pour ne pas gêner la FAB ni la recherche
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-left');
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}), 'bottom-left');
-
-/* Filet de sécurité : si Esri renvoie une erreur d'auth, basculer sur l'ortho IGN. */
-map.on('error',function(e){
-  var msg='',url='';
-  try{
-    msg=String((e&&e.error&&e.error.message)||'');
-    url=String((e&&e.error&&e.error.url)||'');
-  }catch(_){}
-  if(/arcgisonline\.com/i.test(url) && /World_Imagery/i.test(url)){
-    try{
-      if(map.getLayer('bm-ortho'))map.setLayoutProperty('bm-ortho','visibility','visible');
-      if(map.getLayer('bm-sat'))map.setLayoutProperty('bm-sat','visibility','none');
-      if(map.getLayer('bm-sat-labels'))map.setLayoutProperty('bm-sat-labels','visibility','visible');
-      var btn=document.getElementById('bm-ortho');if(btn)btn.classList.add('active');
-      var bs=document.getElementById('bm-sat');if(bs)bs.classList.remove('active');
-      showNetToast('⚠ Tuile Esri indisponible — orthophoto IGN active');
-    }catch(_){}
-  }else if(/api key required|apikey|api key|401|403/i.test(msg)){
-    try{
-      if(map.getLayer('bm-ortho'))map.setLayoutProperty('bm-ortho','visibility','visible');
-      if(map.getLayer('bm-sat'))map.setLayoutProperty('bm-sat','visibility','none');
-      showNetToast('⚠ Esri a refusé la tuile — orthophoto IGN active');
-    }catch(_){}
-  }
-});
 
 var HOME_CENTER=[0.15,46.15], HOME_ZOOM=8;
 function resetView(){map.flyTo({center:HOME_CENTER,zoom:HOME_ZOOM});}
 window.resetView=resetView;
 window.toggleLayersPanel=function(){document.getElementById('layers-panel').classList.toggle('open');};
+// Ferme le panneau couches si on touche la carte (mobile)
 document.getElementById('map').addEventListener('touchstart',function(){
   document.getElementById('layers-panel').classList.remove('open');
 },{passive:true});
 
-/* ── Données ── */
+// ── Données chargées ──
 var layerData={oa:[],oh:[],acces:[],pam:[],pk:[]};
 var _oaByCode={};
 var _loading={oa:true,oh:true,pam:true,acces:true,pk:true};
 var _pkHData=null,_pkHLoaded=false;
 var searchIndex=[];
+// Position sauvegardée au moment du chargement (avant tout moveend)
+var _savedPosAtLoad=null;
 
+// ── Visibilité couches (état utilisateur) ──
 var _vis={rail:true,pk:true,pkhecto:true,pkmetric:true,oa:true,oh:true,pam:true,acces:true,
            oapoly:true,bois:true,n2:true,old:false,mc:true,eco:true};
 
+// ── IDs couches par clé ──
 var LAYER_IDS = {
   rail:    ['rail-line'],
   pk:      ['pk50-c','pk50-lbl','pk10-c','pk10-lbl','pk1-c','pk1-lbl'],
   pkhecto: ['pkh-c','pkh-lbl'],
-  pkmetric:['pkm10-symbol','pkm1-symbol'],
+  pkmetric:['pkm-c','pkm-lbl'],
   oa:      ['oa-cluster-fill','oa-cluster-lbl','oa-pt'],
   oh:      ['oh-line','oh-lbl'],
   pam:     ['pam-dot','pam-lbl'],
@@ -599,6 +527,7 @@ function setVis(key, on){
   });
 }
 
+// ── Focus géométrie (recherche) ──
 var _focusActive=false;
 function clearFocusGeom(){
   if(!_focusActive)return;
@@ -627,10 +556,12 @@ function focusGeom(geom,opts){
   setTimeout(clearFocusGeom,opts.ttl||10000);
 }
 
+// ── Popup survol partagé ──
 var _hoverPopup=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:'hover-tip',offset:8});
 function showHover(lngLat,html){_hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map);}
 function hideHover(){_hoverPopup.remove();}
 
+// ── Data loading ──
 function loadJSON(name){
   return fetch('data/'+name+'.geojson?_v='+APP_VER)
     .then(function(r){if(!r.ok)throw new Error(name+' HTTP '+r.status);return r.json();})
@@ -651,32 +582,40 @@ function showError(msg){
 }
 
 if(location.protocol==='file:'){
-  showError('Protocole file:// non supporté pour le GPS. Utilisez HTTPS (GitHub Pages, serveur interne) ou http://localhost.');
+  showError('Protocole file:// non supporté.');
 } else {
   map.on('load', function(){
-    _mapReady=true;                       /* ← flag : remplace map.loaded() côté GPS */
     document.getElementById('loader').remove();
     _initVectorLayers();
     _pkMapReady=true;
     if(_pkPrefetch)_setupPKLayers(_pkPrefetch);
     _loadAllData();
     _initLayersPanel();
+    /* Applique l'etat de visibilite par defaut de chaque couche (_vis) */
     Object.keys(LAYER_IDS).forEach(function(k){setVis(k,_vis[k]);});
     _initSearch();
+    _restoreMapPos();
+    /* Afficher état de chargement immédiatement */
     _updateLoadStatus();
     setTimeout(function(){
-      if(!map.getLayer('pkm1-symbol'))showNetToast('⚠ PK métriques absents – recharger (F5)');
+      if(!map.getLayer('pkm-c'))showNetToast('⚠ PK 1m absent – recharger (F5)');
     },5000);
   });
 }
 
+// ══════════════════════════════════════════════════════════
+// COUCHES VECTORIELLES (PMTiles + GeoJSON)
+// ══════════════════════════════════════════════════════════
 function _initVectorLayers(){
+  // ── Boisements source (GeoJSON) ──
   map.addSource('bois',{type:'geojson',data:emptyFC()});
+  // ── GeoJSON sources (polygones légers chargés dans _loadAllData) ──
   map.addSource('n2',{type:'geojson',data:emptyFC()});
   map.addSource('old',{type:'geojson',data:emptyFC()});
   map.addSource('mc',{type:'geojson',data:emptyFC()});
   map.addSource('eco',{type:'geojson',data:emptyFC()});
 
+  // ── Boisements ──
   map.addLayer({id:'bois-fill',type:'fill',source:'bois',minzoom:8,
     paint:{'fill-color':['match',['upcase',['coalesce',['get','TYPE_OBJET'],'']],
       'RIPISYLVE','#1b5e20','BOIS','#388e3c','HAIE','#558b2f','#33691e'],
@@ -684,6 +623,7 @@ function _initVectorLayers(){
   map.addLayer({id:'bois-outline',type:'line',source:'bois',minzoom:8,
     paint:{'line-color':'#FFEB3B','line-width':1.5,'line-dasharray':[4,2]}});
 
+  // ── Natura 2000 ──
   map.addLayer({id:'n2-fill',type:'fill',source:'n2',minzoom:6,
     paint:{'fill-color':['match',['get','type_complet'],'ZPS','#ff9800','ZSC','#2e7d32','#4caf50'],
       'fill-opacity':0.28}});
@@ -691,17 +631,20 @@ function _initVectorLayers(){
     paint:{'line-color':['match',['get','type_complet'],'ZPS','#e65100','ZSC','#1b5e20','#388e3c'],
       'line-width':1.5,'line-dasharray':[3,2]}});
 
+  // ── Zones OLD ──
   map.addLayer({id:'old-fill',type:'fill',source:'old',minzoom:5,
     paint:{
       'fill-color':['interpolate',['linear'],['zoom'],5,'#c8d8ff',10,'#6b96ff',13,'#1435d4'],
       'fill-opacity':['interpolate',['linear'],['zoom'],5,0.28,9,0.32,12,0.38,13,0.28,15,0.15,17,0.07,19,0.02]}});
 
+  // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
     paint:{'fill-color':'#ab47bc',
       'fill-opacity':['interpolate',['linear'],['zoom'],8,0.20,16,0.10]}});
   map.addLayer({id:'mc-outline',type:'line',source:'mc',minzoom:8,
     paint:{'line-color':'#7b1fa2','line-width':1.8}});
 
+  // ── Écopâturage ──
   map.addLayer({id:'eco-fill',type:'fill',source:'eco',minzoom:8,
     paint:{'fill-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
       'ACTIVE'],'#66bb6a','#b0bec5'],
@@ -712,6 +655,7 @@ function _initVectorLayers(){
       'line-width':['interpolate',['linear'],['zoom'],8,1.5,14,2.2,18,1.8],
       'line-opacity':['interpolate',['linear'],['zoom'],8,0.8,16,0.9]}});
 
+  // ── Hover + click sur couches PMTiles ──
   ['bois-fill','n2-fill','old-fill','mc-fill','eco-fill'].forEach(function(lid){
     map.on('mouseenter',lid,function(e){
       map.getCanvas().style.cursor='pointer';
@@ -736,12 +680,16 @@ function _initVectorLayers(){
     });
   });
 
+  // ── GeoJSON sources (données ponctuelles/lignes) ──
+  // rail/oa_poly/oh/oa/pk_hecto : setData fonctionne car pas de rendu initial (layers ajoutés après)
+  // pk_all/pam/acces : source créée lazily avec données inline (_setupPKLayers / _loadAllData)
   map.addSource('rail',{type:'geojson',data:emptyFC()});
   map.addSource('oa_poly',{type:'geojson',data:emptyFC()});
   map.addSource('oh',{type:'geojson',data:emptyFC()});
   map.addSource('oa',{type:'geojson',data:emptyFC(),cluster:true,clusterMaxZoom:14,clusterRadius:55});
   map.addSource('pk_hecto',{type:'geojson',data:emptyFC()});
 
+  // ── OA Emprises (polygones avec labels permanents) ──
   map.addLayer({id:'oapoly-fill',type:'fill',source:'oa_poly',minzoom:13,
     paint:{'fill-color':'#00bcd4','fill-opacity':0.30}});
   map.addLayer({id:'oapoly-outline',type:'line',source:'oa_poly',minzoom:13,
@@ -758,6 +706,7 @@ function _initVectorLayers(){
     openDetailOAPoly(e.features[0].properties);
   });
 
+  // ── Tracé Rail ──
   map.addLayer({id:'rail-line',type:'line',source:'rail',
     paint:{'line-color':'#cc0000','line-width':4.5,'line-opacity':0.95}});
   map.on('click','rail-line',function(e){
@@ -765,6 +714,7 @@ function _initVectorLayers(){
     openDetailGeneric('Rail','🚄 LGV SEA',e.features[0].properties,'#cc0000');
   });
 
+  // ── OH Hydrauliques ──
   map.addLayer({id:'oh-line',type:'line',source:'oh',minzoom:14,
     paint:{'line-color':'#ef6c00','line-width':7,'line-opacity':0.9}});
   map.addLayer({id:'oh-lbl',type:'symbol',source:'oh',minzoom:16,
@@ -777,6 +727,9 @@ function _initVectorLayers(){
   map.on('mouseleave','oh-line',function(){map.getCanvas().style.cursor='';});
   map.on('click','oh-line',function(e){if(e.features.length)openDetailOH(e.features[0].properties);});
 
+  // ── PK 50/10/1km : couches ajoutées dans _setupPKLayers une fois données prêtes ──
+
+  // ── PK hectométriques (100 m) ──
   map.addLayer({id:'pkh-c',type:'circle',source:'pk_hecto',minzoom:15,maxzoom:18,
     paint:{'circle-radius':3,'circle-color':'#555','circle-stroke-width':1.5,'circle-stroke-color':'white','circle-opacity':0.9}});
   map.addLayer({id:'pkh-lbl',type:'symbol',source:'pk_hecto',minzoom:15,maxzoom:18,
@@ -784,40 +737,22 @@ function _initVectorLayers(){
       'text-offset':[0,-1.1],'text-anchor':'bottom','text-allow-overlap':false},
     paint:{'text-color':'#222','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.4}});
 
+  // ── PK métriques (1 m via PMTiles) ──
   try{
     map.addSource('pk_metric',{type:'vector',url:'pmtiles://'+_pkMetricBase});
-
-    function addMetricTier(id,minz,maxz,size){
-      map.addLayer({id:id,type:'symbol',source:'pk_metric','source-layer':'pk_metric',minzoom:minz,maxzoom:maxz,
-        layout:{
-          'symbol-placement':'point',
-          'text-field':['concat','●\n',['to-string',['coalesce',['get','_pk_label'],['get','pk'],'']]],
-          'text-size':size,
-          'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
-          'text-anchor':'center','text-line-height':1.0,
-          'text-allow-overlap':false,'text-ignore-placement':false,
-          'text-optional':false,'text-padding':2
-        },
-        paint:{'text-color':'#d32f2f','text-halo-color':'rgba(255,255,255,.98)','text-halo-width':1.5}});
-    }
-    addMetricTier('pkm10-symbol',18,20,9);
-    addMetricTier('pkm1-symbol',20,22,9);
-    map.addLayer({id:'pkm1-hit',type:'circle',source:'pk_metric','source-layer':'pk_metric',minzoom:19,maxzoom:22,paint:{'circle-radius':2.5,'circle-color':'#4285f4','circle-opacity':0.01,'circle-stroke-width':0,'circle-stroke-opacity':0}});
-    if(!map.getLayer('pkm-query')){
-      map.addLayer({id:'pkm-query',type:'circle',source:'pk_metric','source-layer':'pk_metric',minzoom:17,maxzoom:22,
-        paint:{'circle-radius':1,'circle-opacity':0,'circle-stroke-opacity':0}});
-    }
-
-    _pkMetricArchive.getHeader().then(function(h){
-      console.log('PMTiles PK OK',h);
-    }).catch(function(e){
-      console.error('PMTiles PK header Firefox:',e);
-      showNetToast('⚠ PK métriques bloqués par Firefox/proxy réseau');
-    });
+    map.addLayer({id:'pkm-c',type:'circle',source:'pk_metric','source-layer':'pk_metric',minzoom:18,
+      paint:{'circle-radius':2.5,'circle-color':'#e53935','circle-stroke-width':1.5,'circle-stroke-color':'rgba(255,255,255,0.9)','circle-opacity':0.85}});
+    map.addLayer({id:'pkm-lbl',type:'symbol',source:'pk_metric','source-layer':'pk_metric',minzoom:19,
+      layout:{'text-field':['get','_pk_label'],'text-size':9,'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
+        'text-offset':[0,-1.1],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
+      paint:{'text-color':'#b71c1c','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.3}});
+    console.log('pkm layers OK');
   }catch(e){
     console.error('pkm error:',e);
-    showNetToast('⚠ PK métriques : '+e.message);
+    showNetToast('⚠ PK 1m: '+e.message);
   }
+
+  // ── OA clusters + points ──
   map.addLayer({id:'oa-cluster-fill',type:'circle',source:'oa',filter:['has','point_count'],minzoom:11,
     paint:{'circle-radius':['step',['get','point_count'],16,10,22,50,28],
       'circle-color':'#00bcd4','circle-stroke-width':2,'circle-stroke-color':'rgba(255,255,255,.6)'}});
@@ -845,6 +780,9 @@ function _initVectorLayers(){
     showHover(e.lngLat,'🏗 '+c(e.features[0].properties.LIBELLE_LO||e.features[0].properties.CODE_OBJET||'OA'));});
   map.on('mouseleave','oa-pt',function(){map.getCanvas().style.cursor='';hideHover();});
 
+  // ── PAM + Accès : initialisées lazily dans _loadAllData (source inline garantie MapLibre GL v4) ──
+
+  // Fermer le détail sur clic vide
   map.on('click',function(e){
     var allL=['rail-line','oh-line','oa-pt','pam-dot','acc-dot','oapoly-fill','bois-fill','n2-fill','old-fill','mc-fill','eco-fill'];
     var layers=allL.filter(function(l){return !!map.getLayer(l);});
@@ -852,6 +790,7 @@ function _initVectorLayers(){
     if(!hit.length)closeDetail();
   });
 
+  // Légende (collapsible sur mobile)
   var legendCtrl={onAdd:function(){
     var wrap=document.createElement('div');wrap.className='lgv-legend-wrap';
     var hdr=document.createElement('div');hdr.className='lgv-legend-hdr';
@@ -870,36 +809,48 @@ function _initVectorLayers(){
       '<div class="li"><div class="lc" style="background:#ff9800;opacity:.5"></div>Natura ZPS</div>'+
       '<div class="li"><div class="lc" style="background:#81c784;opacity:.6"></div>Écopâturage actif</div>'+
       '<div class="li"><div class="lc" style="background:#388e3c;opacity:.5"></div>Boisements</div>';
+    /* d avant hdr : garantit l'expansion vers le haut sur mobile (flexbox column) */
     wrap.appendChild(d);wrap.appendChild(hdr);
     return wrap;},onRemove:function(){}};
   map.addControl(legendCtrl,'bottom-left');
 }
 
+// ══════════════════════════════════════════════════════════
+// CHARGEMENT DONNÉES
+// ══════════════════════════════════════════════════════════
 function _loadAllData(){
+  // Rail – fitBounds sur la LGV si aucune position n'était sauvegardée
   loadJSON('rail').then(function(d){
     map.getSource('rail').setData(d);
-    try{
-      var coords=[];
-      (d.features||[]).forEach(function(f){
-        var g=f.geometry;if(!g)return;
-        if(g.type==='LineString')coords=coords.concat(g.coordinates);
-        else if(g.type==='MultiLineString')g.coordinates.forEach(function(l){coords=coords.concat(l);});
-      });
-      if(coords.length){
-        var lngs=coords.map(function(c){return c[0];}),lats=coords.map(function(c){return c[1];});
-        map.fitBounds([[Math.min.apply(null,lngs),Math.min.apply(null,lats)],
-                       [Math.max.apply(null,lngs),Math.max.apply(null,lats)]],
-                      {padding:40,maxZoom:10,duration:600});
-      }
-    }catch(e){}
+    var doFit=!_savedPosAtLoad;
+    if(doFit){
+      try{
+        var coords=[];
+        (d.features||[]).forEach(function(f){
+          var g=f.geometry;if(!g)return;
+          if(g.type==='LineString')coords=coords.concat(g.coordinates);
+          else if(g.type==='MultiLineString')g.coordinates.forEach(function(l){coords=coords.concat(l);});
+        });
+        if(coords.length){
+          var lngs=coords.map(function(c){return c[0];}),lats=coords.map(function(c){return c[1];});
+          map.fitBounds([[Math.min.apply(null,lngs),Math.min.apply(null,lats)],
+                         [Math.max.apply(null,lngs),Math.max.apply(null,lats)]],
+                        {padding:40,maxZoom:10,duration:600});
+        }
+      }catch(e){}
+    }
   });
 
+  // OA poly
   loadJSON('oa_poly').then(function(d){
     map.getSource('oa_poly').setData(d);
     var cnt=(d.features||[]).length;
     _updateLpCount('oapoly',cnt);
   });
 
+  // PK : chargement géré par _setupPKLayers (pré-fetch parallèle avant map init)
+
+  // Accès – source créée inline (MapLibre GL v4 : pas de setData sur source vide)
   loadJSON('acces').then(function(d){
     var cnt=(d.features||[]).length;
     layerData.acces=(d.features||[]).map(function(f){return{props:f.properties,geom:f.geometry};});
@@ -924,12 +875,14 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.acces=false;_updateLoadStatus();});
 
+  // PK hectométriques
   loadJSON('pk_hecto').then(function(d){
     map.getSource('pk_hecto').setData(d);
     _pkHData=d;
     addPKHectoToIndex(d);
   });
 
+  // OA (Phase 2)
   loadJSON('oa').then(function(d){
     map.getSource('oa').setData(d);
     var cnt=(d.features||[]).length;
@@ -943,6 +896,7 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.oa=false;_updateLoadStatus();});
 
+  // OH
   loadJSON('oh').then(function(d){
     map.getSource('oh').setData(d);
     var cnt=(d.features||[]).length;
@@ -952,8 +906,10 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.oh=false;_updateLoadStatus();});
 
+  // PAM – source créée inline (MapLibre GL v4 : pas de setData sur source vide)
   loadJSON('pam').then(function(d){
     var cnt=(d.features||[]).length;
+    /* Injecter _lat/_lng dans les propriétés pour les liens de navigation */
     (d.features||[]).forEach(function(f){
       if(f.geometry&&f.geometry.type==='Point'){
         f.properties._lat=f.geometry.coordinates[1];
@@ -982,7 +938,10 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.pam=false;_updateLoadStatus();});
 
+  // Boisements (GeoJSON)
   loadJSONAutoEnc('bois').then(function(d){map.getSource('bois').setData(d);});
+
+  // N2000, OLD, MC, Écopâturage (GeoJSON – légers)
   loadJSONAutoEnc('n2').then(function(d){map.getSource('n2').setData(d);});
   loadJSON('old').then(function(d){map.getSource('old').setData(d);});
   loadJSON('mc').then(function(d){map.getSource('mc').setData(d);});
@@ -998,13 +957,14 @@ function _updateLoadStatus(){
     sl.style.background='rgba(27,94,32,.92)';
     sl.style.color='#fff';
     var ctr=map.getCenter();
-    sl.textContent='✅ '+APP_VER+' | z'+Math.round(map.getZoom())+
+    sl.textContent='✅ v'+APP_VER+' | z'+Math.round(map.getZoom())+
       ' | lng'+ctr.lng.toFixed(2)+' lat'+ctr.lat.toFixed(2)+
       ' | PAM:'+layerData.pam.length+' | Accès:'+layerData.acces.length+' | PK:'+layerData.pk.length;
     sl.style.display='block';
     setTimeout(function(){sl.style.display='none';},12000);
     var b=document.getElementById('ver-badge');
     if(b)b.title='PAM:'+layerData.pam.length+' | Accès:'+layerData.acces.length+' | PK:'+layerData.pk.length;
+    // Fallback : si le tracé LGV n'est pas dans le viewport, recentrer sur la LGV
     setTimeout(function(){
       if(!map.getLayer('rail-line'))return;
       var feats=map.queryRenderedFeatures({layers:['rail-line']});
@@ -1026,14 +986,16 @@ function _updateLoadStatus(){
   sl.style.display='block';
 }
 
+// ══════════════════════════════════════════════════════════
+// PANNEAU COUCHES
+// ══════════════════════════════════════════════════════════
 function _initLayersPanel(){
   var body=document.getElementById('layers-panel-body');if(!body)return;
-  /* v4.12 : Ortho IGN actif par défaut (aucune clé API) ; Esri = opt-in. */
+  // Switcher fond de carte
   var bmHtml='<div class="bm-row">'+
-    '<button class="bm-btn active" id="bm-ortho" onclick="switchBM(\'ortho\')">🌿 Ortho IGN</button>'+
-    '<button class="bm-btn" id="bm-sat" onclick="switchBM(\'sat\')">🛰 Satellite Esri</button>'+
-    '<button class="bm-btn" id="bm-plan" onclick="switchBM(\'plan\')">🗺 Plan IGN</button>'+
-    '<button class="bm-btn" id="bm-osm" onclick="switchBM(\'osm\')">🌍 OSM</button>'+
+    '<button class="bm-btn active" id="bm-sat" onclick="switchBM(\'sat\')">🛰 Sat</button>'+
+    '<button class="bm-btn" id="bm-osm" onclick="switchBM(\'osm\')">🗺 OSM</button>'+
+    '<button class="bm-btn" id="bm-ign" onclick="switchBM(\'ign\')">📍 IGN</button>'+
     '</div>';
   var toolbar='<div style="display:flex;gap:6px;padding:3px 2px 8px;border-bottom:1px solid #eee;margin-bottom:4px">'+
     '<button onclick="setAllLayers(true)" style="flex:1;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;padding:5px;font-size:11.5px;cursor:pointer;color:#2e7d32;font-weight:700">✓ Tout</button>'+
@@ -1043,7 +1005,7 @@ function _initLayersPanel(){
     {key:'rail',  label:'Tracé LGV',         color:'#cc0000',type:'line'},
     {key:'pk',    label:'PK (zoom-adaptatif)',color:'#333',   type:'dot'},
     {key:'pkhecto', label:'PK 100m (z≥15)',      color:'#555',   type:'dot', minZoom:15},
-    {key:'pkmetric',label:'PK 10 m / 1 m (z≥18)', color:'#e53935',type:'dot',minZoom:18},
+    {key:'pkmetric',label:'PK 1m (z≥17)',        color:'#9e9e9e',type:'dot', minZoom:17},
     {key:'n2',    label:'N2000',              color:'#1b5e20',type:'fill',minZoom:6},
     {key:'old',   label:'Zones OLD',          color:'#3366ff',type:'fill',minZoom:5},
     {key:'mc',    label:'Mesures comp.',      color:'#9c27b0',type:'fill',minZoom:8},
@@ -1078,57 +1040,25 @@ function _updateZoomBadges(){
     el.style.color=needed?'#e53935':'#bbb';el.style.fontWeight=needed?'700':'400';
   });
 }
-window.toggleLayer=function(key,on){setVis(key,on);};
+window.toggleLayer=function(key,on){
+  setVis(key,on);
+};
 window.setAllLayers=function(on){
   Object.keys(LAYER_IDS).forEach(function(k){setVis(k,on);});
   document.querySelectorAll('.lp-item input[type=checkbox]').forEach(function(cb){cb.checked=on;});
 };
-function _setBasemapVisible(name){
-  var ids=['sat','ortho','plan','osm'];
-  ids.forEach(function(id){
+window.switchBM=function(name){
+  ['sat','osm','ign'].forEach(function(id){
     if(map.getLayer('bm-'+id))map.setLayoutProperty('bm-'+id,'visibility',id===name?'visible':'none');
     var btn=document.getElementById('bm-'+id);if(btn)btn.classList.toggle('active',id===name);
   });
-  if(map.getLayer('bm-sat-labels')){
-    var showLabels=(name==='sat'||name==='ortho')?'visible':'none';
-    map.setLayoutProperty('bm-sat-labels','visibility',showLabels);
-  }
+  /* Référence Esri transparente : villes, limites et transports au-dessus de l'imagerie. */
+  if(map.getLayer('bm-sat-ref'))map.setLayoutProperty('bm-sat-ref','visibility',name==='sat'?'visible':'none');
+};
+function _restoreLayerStates(){
+  /* Persistance supprimée : toutes les couches démarrent visibles par défaut */
+  try{localStorage.removeItem('lgv_layers_v5');localStorage.removeItem('lgv_layers_v4');localStorage.removeItem('lgv_layers_v3');}catch(e){}
 }
-window.switchBM=function(name){
-  if(name!=='sat'){
-    _setBasemapVisible(name);
-    return;
-  }
-
-  /*
-   * Vérification légère avant d'activer Esri.
-   * L'endpoint services.arcgisonline.com correspond au service
-   * World_Imagery documenté par Esri.
-   */
-  try{
-    var z=Math.min(12,Math.max(2,Math.floor(map.getZoom())));
-    var c0=map.getCenter();
-    var n=Math.pow(2,z),x=Math.floor((c0.lng+180)/360*n);
-    var r=c0.lat*Math.PI/180;
-    var y=Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n);
-    var u='https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+z+'/'+y+'/'+x+'?v='+Date.now();
-
-    fetch(u,{method:'GET',cache:'no-store',mode:'cors'})
-      .then(function(resp){
-        if(!resp.ok)throw new Error('HTTP '+resp.status);
-        _setBasemapVisible('sat');
-      })
-      .catch(function(err){
-        console.warn('Esri indisponible:',err);
-        _setBasemapVisible('ortho');
-        showNetToast('⚠ Imagerie Esri indisponible — orthophoto IGN utilisée');
-      });
-  }catch(e){
-    _setBasemapVisible('ortho');
-    showNetToast('⚠ Esri indisponible — orthophoto IGN utilisée');
-  }
-}
-
 function _updateLpCount(key,n){
   var el=document.getElementById('lp-'+key);if(!el)return;
   el.textContent=n>0?' ('+n+')':'';el.style.color=n>0?'#888':'#ccc';
@@ -1141,1165 +1071,385 @@ window._forceLayerOn=function(type){
   var cb=document.getElementById('lp-chk-'+key);if(cb)cb.checked=true;
 };
 
-/* ═══════════════════════════════════════════════════════════
-   LOCALISATION TEMPS RÉEL — v4.14
-   ────────────────────────────────────────────────────────────
-   Architecture inspirée du script terrain v3 fourni :
-   • watchPosition unique
-   • rendu événementiel du point bleu
-   • position brute séparée du rendu et du PK
-   • petite transition uniquement pendant l'arrivée d'un nouveau fix
-   • aucune position GPS persistée
-   • adaptation Firefox Android / Samsung :
-       - relance si Firefox cesse d'envoyer des callbacks
-       - reprise après changement d'application / verrouillage
-       - rendu du point bleu par source GeoJSON sur Firefox Android
-         (même mécanique que le script de référence)
-   ──────────────────────────────────────────────────────────── */
-
-var _gpsWatch=null;
-var _gpsFollowing=true;
-var _gpsCameraMoving=false;
-var _gpsCameraInitialized=false;
-var _gpsSessionId=0;
-var _gpsWanted=false;
-var _gpsBackgrounded=false;
-
-var _gpsWatchdog=null;
-var _gpsRestartTimer=null;
-var _gpsRetryTimer=null;
-var _gpsNoFixTimer=null;
-var _gpsLastWatchEvent=0;
-var _gpsRestarting=false;
-
-var _gpsLastRaw=null;
-var _gpsLastAccepted=null;
-var _gpsDisplayed=null;
-var _gpsDisplayTarget=null;
-var _gpsMatch=null;
-
-var _gpsLastCameraTs=0;
-var _gpsLastPKUpdate=0;
-var _gpsLastFixAt=0;
-var _gpsFixCount=0;
-var _gpsSameCoordCount=0;
-var _gpsLastStatusTs=0;
-
-var _gpsAnimFrame=null;
-var _gpsAnimFrom=null;
-var _gpsAnimTo=null;
-var _gpsAnimStarted=0;
-var _gpsAnimDuration=0;
+// ══════════════════════════════════════════════════════════
+// POSITION MAP + GÉOLOCALISATION
+// ══════════════════════════════════════════════════════════
+function _isOnLGV(lat,lng){
+  return lat>=44.3&&lat<=47.7&&lng>=-1.7&&lng<=1.3;
+}
 
 /*
- * Firefox Android peut limiter la fréquence des callbacks Geolocation
- * sur certains appareils Samsung. On conserve donc un watchdog agressif
- * mais sans multiplier les watchers simultanés.
+ * GPS volontairement indépendant du calcul PK.
+ * Règle principale : chaque fix valide reçu par watchPosition() est affiché
+ * immédiatement. Aucun filtrage ne peut figer le point bleu.
  */
-var _gpsFirefoxAndroid=(
-  /Android/i.test(navigator.userAgent) &&
-  /Firefox/i.test(navigator.userAgent)
-);
+var _gpsWatchId=null;
+var _gpsActive=false;
+var _gpsFollow=true;
+var _gpsLastRaw=null;
+var _gpsFiltered=null;
+var _gpsAccuracy=Infinity;
+var _gpsHeading=null;
+var _gpsSpeed=0;
+var _gpsLastFixAt=0;
+var _gpsFixCount=0;
+var _gpsLastCoordKey='';
+var _gpsSameCoordCount=0;
+var _gpsFollowingCamera=false;
+var _gpsWatchdog=null;
+var _gpsWatchdogTimer=null;
+var _gpsLastWatchEvent=0;
+var _gpsRestarting=false;
+var _gpsDesired=false;
+var _gpsSession=0;
 
 var GPS_MAX_ACCURACY=500;
-var GPS_PK_MAX_ACCURACY=30;
 var GPS_STALE_MS=10000;
-var GPS_WATCH_TIMEOUT=15000;
+var GPS_WATCH_TIMEOUT=20000;
 var GPS_PK_THROTTLE_MS=800;
 
-/* Sur Firefox Android, le point utilise la mécanique GeoJSON
-   du script de référence. Chrome/Edge peuvent utiliser le Marker DOM. */
-var _gpsUseGeoJSONPoint=_gpsFirefoxAndroid;
+function _gpsDistance(a,b){return _haversine(a.lat,a.lng,b.lat,b.lng);}
 
-var _gpsSources={point:null,circle:null,heading:null};
-var _gpsMarker=null;
-var _gpsLayersReady=false;
-var _gpsLastRendered=null;
-
-function _gpsResetState(){
-  _gpsLastRaw=null;
-  _gpsLastAccepted=null;
-  _gpsDisplayed=null;
-  _gpsDisplayTarget=null;
-  _gpsMatch=null;
-  _gpsLastPKUpdate=0;
-  _gpsLastFixAt=0;
-  _gpsFixCount=0;
-  _gpsSameCoordCount=0;
-  _gpsLastStatusTs=0;
-  _gpsCameraInitialized=false;
-  _gpsLastCameraTs=0;
-  _gpsLastRendered=null;
-  if(_gpsAnimFrame){
-    cancelAnimationFrame(_gpsAnimFrame);
-    _gpsAnimFrame=null;
-  }
-  _gpsAnimFrom=null;
-  _gpsAnimTo=null;
-  _gpsAnimStarted=0;
-  _gpsAnimDuration=0;
-  if(typeof _pkMatchState!=='undefined')_pkMatchState.last=null;
-  if(typeof _pkMatchBusy!=='undefined')_pkMatchBusy=false;
+/* Léger lissage cosmétique uniquement.
+ * - Immobile : petit amortissement possible contre le bruit.
+ * - Déplacement détecté : priorité au fix brut.
+ * - Jamais de rejet d'un changement de position valide.
+ */
+function _gpsFilter(raw){
+  if(!_gpsFiltered)return {lat:raw.lat,lng:raw.lng};
+  var d=_gpsDistance(_gpsFiltered,raw);
+  var moving=(raw.speed!=null&&raw.speed>0.7);
+  if(moving||d>=1.5)return {lat:raw.lat,lng:raw.lng};
+  var acc=Math.max(1,raw.accuracy||50);
+  var w=acc<=10?0.75:acc<=25?0.60:0.45;
+  return {
+    lat:_gpsFiltered.lat+(raw.lat-_gpsFiltered.lat)*w,
+    lng:_gpsFiltered.lng+(raw.lng-_gpsFiltered.lng)*w
+  };
 }
 
-function _gpsAge(p){
-  if(!p||!p.receivedAt)return Infinity;
-  return Math.max(0,Date.now()-p.receivedAt);
-}
-
-function _gpsCircle(lng,lat,r){
+function _gpsCircleFeature(lng,lat,r){
+  r=Math.max(3,Math.min(1000,Number(r)||3));
   var a=[],R=6378137,lr=lat*Math.PI/180;
-  r=Math.max(1,Number(r)||1);
+  var cosLat=Math.max(0.15,Math.cos(lr));
   for(var i=0;i<=64;i++){
-    var q=i/64*Math.PI*2,dx=Math.cos(q)*r,dy=Math.sin(q)*r;
+    var q=i/64*Math.PI*2;
+    var dx=Math.cos(q)*r,dy=Math.sin(q)*r;
     a.push([
-      lng+dx/(R*Math.max(.15,Math.cos(lr)))*180/Math.PI,
-      lat+dy/R*180/Math.PI
+      lng+(dx/(R*cosLat))*180/Math.PI,
+      lat+(dy/R)*180/Math.PI
     ]);
   }
-  return{
-    type:'Feature',
-    properties:{},
-    geometry:{type:'Polygon',coordinates:[a]}
-  };
-}
-
-function _gpsHeadingWedge(lng,lat,heading,r){
-  if(!Number.isFinite(heading))return emptyFC();
-  var a=[[lng,lat]],R=6378137,cl=Math.max(.15,Math.cos(lat*Math.PI/180));
-  for(var i=0;i<=18;i++){
-    var h=(heading-28+56*i/18)*Math.PI/180;
-    var dx=Math.sin(h)*r,dy=Math.cos(h)*r;
-    a.push([
-      lng+dx/(R*cl)*180/Math.PI,
-      lat+dy/R*180/Math.PI
-    ]);
-  }
-  a.push([lng,lat]);
-  return{
-    type:'Feature',
-    properties:{},
-    geometry:{type:'Polygon',coordinates:[a]}
-  };
-}
-
-function _gpsQuality(a){
-  return a<=5?'EXCELLENTE':
-         a<=10?'TRÈS BONNE':
-         a<=20?'BONNE':
-         a<=40?'MOYENNE':
-         a<=80?'FAIBLE':'INSUFFISANTE';
-}
-
-function _gpsDistance(a,b){
-  if(!a||!b)return Infinity;
-  return _haversine(a.lat,a.lng,b.lat,b.lng);
-}
-
-function _updateGpsStatus(p,force){
-  var el=document.getElementById('gps-status');
-  if(!el)return;
-
-  var now=Date.now();
-  if(!force&&now-_gpsLastStatusTs<250)return;
-  _gpsLastStatusTs=now;
-
-  if(!p){
-    el.innerHTML=
-      '<div class="gps-title">📍 GPS temps réel</div>'+
-      '<div class="gps-line gps-bad">'+
-      (_gpsFirefoxAndroid
-        ? 'Firefox Android : acquisition…'
-        : 'GPS en attente / autorisation requise')+
-      '</div>';
-    el.style.display='block';
-    return;
-  }
-
-  var age=_gpsAge(p);
-  var stale=age>GPS_STALE_MS;
-  var sp=(p.speed!=null&&p.speed>.4)
-    ?Math.round(p.speed*3.6)+' km/h'
-    :'0 km/h';
-
-  var state=stale
-    ?'GPS PERDU'
-    :(p.accuracy<=10
-      ?'GPS PRÉCIS'
-      :(p.accuracy<=20
-        ?'GPS BON'
-        :(p.accuracy<=50?'GPS MOYEN':'GPS FAIBLE')));
-
-  var cls=stale
-    ?'gps-bad'
-    :(p.accuracy<=20?'gps-good':'gps-mid');
-
-  var pkText=_gpsMatch&&_gpsMatch.label
-    ?' · PK '+_gpsMatch.label
-    :' · PK —';
-
-  var voie=_gpsMatch&&_gpsMatch.voie
-    ?' · V '+_gpsMatch.voie
-    :'';
-
-  var jump=p.gpsJump
-    ?' · ⚠ saut détecté'
-    :'';
-
-  var delta=(_gpsLastRaw&&_gpsLastRaw.deltaMeters!=null)
-    ?_gpsLastRaw.deltaMeters.toFixed(2)+' m'
-    :'—';
-
-  var cadence='—';
-  if(_gpsLastRaw&&_gpsLastRaw.previousReceivedAt){
-    cadence=((_gpsLastRaw.receivedAt-_gpsLastRaw.previousReceivedAt)/1000).toFixed(1)+' s';
-  }
-
-  var browser=_gpsFirefoxAndroid?' · Firefox Android':'';
-
-  el.innerHTML=
-    '<div class="gps-title">📍 GPS temps réel'+browser+'</div>'+
-    '<div class="gps-line '+cls+'">'+
-      state+' · ±'+Math.round(p.accuracy)+' m · '+sp+
-    '</div>'+
-    '<div class="gps-line">Lat '+p.lat.toFixed(6)+' · Lng '+p.lng.toFixed(6)+'</div>'+
-    '<div class="gps-line">'+
-      (_gpsFollowing?'🎯 Suivi actif':'🖐 Carte libre')+
-      pkText+voie+jump+
-    '</div>'+
-    '<div class="gps-line" style="opacity:.6">'+
-      'Fixes: '+_gpsFixCount+
-      ' · âge '+(age===Infinity?'—':(age/1000).toFixed(1)+' s')+
-      ' · cadence '+cadence+
-    '</div>'+
-    '<div class="gps-line" style="opacity:.55">'+
-      'Δ '+delta+
-      ' · mêmes fixes '+_gpsSameCoordCount+
-      ' · qualité '+_gpsQuality(p.accuracy)+
-    '</div>';
-
-  el.style.display='block';
-}
-
-function _setLocateButton(){
-  var b=document.getElementById('locate-btn');
-  if(!b)return;
-
-  if(_gpsWatch===null){
-    b.style.background='white';
-    b.style.color='#111';
-    b.title='Activer le suivi GPS';
-    return;
-  }
-
-  if(_gpsFollowing){
-    b.style.background='#4285f4';
-    b.style.color='white';
-    b.title='Suivi GPS actif — appuyer pour recentrer';
-  }else{
-    b.style.background='#dbeafe';
-    b.style.color='#1565c0';
-    b.title='GPS actif — carte libre — appuyer pour suivre';
-  }
+  return {type:'Feature',geometry:{type:'Polygon',coordinates:[a]},properties:{_kind:'accuracy'}};
 }
 
 function _gpsEnsureLayers(){
-  if(!_mapReady)return false;
-
-  /* Cercle de précision */
-  if(!_gpsSources.circle){
-    if(!map.getSource('_gpsCircle')){
-      map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});
-    }
-    if(!map.getLayer('_gpsCircleFill')){
-      map.addLayer({
-        id:'_gpsCircleFill',
-        type:'fill',
-        source:'_gpsCircle',
-        paint:{'fill-color':'#4285f4','fill-opacity':.11}
-      });
-    }
-    if(!map.getLayer('_gpsCircleLine')){
-      map.addLayer({
-        id:'_gpsCircleLine',
-        type:'line',
-        source:'_gpsCircle',
-        paint:{'line-color':'#4285f4','line-width':1.1,'line-opacity':.50}
-      });
-    }
-    _gpsSources.circle=map.getSource('_gpsCircle');
-  }
-
-  /* Direction */
-  if(!_gpsSources.heading){
-    if(!map.getSource('_gpsHeading')){
-      map.addSource('_gpsHeading',{type:'geojson',data:emptyFC()});
-    }
-    if(!map.getLayer('_gpsHeadingFill')){
-      map.addLayer({
-        id:'_gpsHeadingFill',
-        type:'fill',
-        source:'_gpsHeading',
-        paint:{'fill-color':'#4285f4','fill-opacity':.12}
-      });
-    }
-    _gpsSources.heading=map.getSource('_gpsHeading');
-  }
-
-  /*
-   * Firefox Android / Samsung :
-   * même famille de rendu que le script de référence fourni par
-   * l'utilisateur : source GeoJSON + couche circle.
-   */
-  if(_gpsUseGeoJSONPoint){
-    if(!_gpsSources.point){
-      if(!map.getSource('_gpsPoint')){
-        map.addSource('_gpsPoint',{type:'geojson',data:emptyFC()});
-      }
-      if(!map.getLayer('_gpsPoint')){
-        map.addLayer({
-          id:'_gpsPoint',
-          type:'circle',
-          source:'_gpsPoint',
-          paint:{
-            'circle-radius':['interpolate',['linear'],['zoom'],
-              12,6,
-              18,9,
-              21,11
-            ],
-            'circle-color':'#1976d2',
-            'circle-opacity':0.98,
-            'circle-stroke-width':3,
-            'circle-stroke-color':'white'
-          }
-        });
-      }
-      _gpsSources.point=map.getSource('_gpsPoint');
-    }
-  }else{
-    /* Chrome/Chromium : Marker DOM direct */
-    if(!_gpsMarker){
-      var el=document.createElement('div');
-      el.id='gps-marker-dot';
-      el.setAttribute('aria-label','Position GPS');
-      _gpsMarker=new maplibregl.Marker({
-        element:el,
-        anchor:'center',
-        pitchAlignment:'map',
-        rotationAlignment:'map'
-      }).setLngLat([0,0]).addTo(map);
-      el.style.display='none';
-    }
-  }
-
-  _gpsLayersReady=true;
-  return true;
+  if(map.getSource('_loc'))return;
+  map.addSource('_loc',{type:'geojson',data:emptyFC()});
+  map.addLayer({id:'_loc-accuracy',type:'fill',source:'_loc',filter:['==','_kind','accuracy'],paint:{
+    'fill-color':'#1976d2','fill-opacity':0.11}});
+  map.addLayer({id:'_loc-accuracy-line',type:'line',source:'_loc',filter:['==','_kind','accuracy'],paint:{
+    'line-color':'#1976d2','line-width':1.2,'line-opacity':0.35}});
+  map.addLayer({id:'_loc-pt',type:'circle',source:'_loc',filter:['==','_kind','position'],paint:{
+    'circle-radius':['interpolate',['linear'],['zoom'],12,5.5,18,8,21,10],
+    'circle-color':'#1976d2','circle-opacity':0.98,
+    'circle-stroke-width':3,'circle-stroke-color':'white'}});
+  map.addLayer({id:'_loc-heading',type:'symbol',source:'_loc',filter:['==','_kind','heading'],layout:{
+    'text-field':'▲','text-size':16,'text-rotate':['get','_heading'],
+    'text-allow-overlap':true,'text-ignore-placement':true},
+    paint:{'text-color':'#1976d2','text-halo-color':'white','text-halo-width':1}});
 }
 
-function _gpsRenderPoint(lat,lng){
-  if(!_gpsEnsureLayers())return false;
-
-  if(_gpsUseGeoJSONPoint){
-    if(_gpsSources.point){
-      _gpsSources.point.setData({
-        type:'Feature',
-        properties:{},
-        geometry:{type:'Point',coordinates:[lng,lat]}
-      });
-      return true;
+function _gpsRender(raw,display,accuracy,heading){
+  if(!map.getSource('_loc')){
+    if(!map.isStyleLoaded()){
+      map.once('idle',function(){_gpsRender(raw,display,accuracy,heading);});
+      return;
     }
-    return false;
+    _gpsEnsureLayers();
   }
-
-  if(_gpsMarker){
-    _gpsMarker.setLngLat([lng,lat]);
-    var el=_gpsMarker.getElement();
-    if(el)el.style.display='block';
-    return true;
+  var feats=[
+    _gpsCircleFeature(display.lng,display.lat,accuracy),
+    {type:'Feature',geometry:{type:'Point',coordinates:[display.lng,display.lat]},properties:{_kind:'position',accuracy:accuracy}},
+  ];
+  if(Number.isFinite(heading)){
+    feats.push({type:'Feature',geometry:{type:'Point',coordinates:[display.lng,display.lat]},properties:{_kind:'heading',_heading:heading}});
   }
-  return false;
+  map.getSource('_loc').setData({type:'FeatureCollection',features:feats});
 }
 
-/*
- * Rendu inspiré du script fourni :
- * - aucune dépendance à map.loaded()
- * - pas de boucle permanente
- * - un rendu immédiat par fix
- * - seulement une micro-transition si un fix suivant arrive très vite.
- *
- * Le rendu final converge TOUJOURS vers la coordonnée brute reçue :
- * aucune prédiction et aucun déplacement inventé.
+/* La caméra ne suit pas chaque centimètre.
+ * Elle recadre uniquement lorsque le point arrive dans la zone périphérique.
+ * Cela permet de voir les petits déplacements du point bleu sans faire bouger
+ * continuellement le fond de carte sous le point.
  */
-function _gpsRenderFix(p){
-  if(!p||!_mapReady)return;
-
-  var prev=_gpsLastRendered;
-  var moved=!prev||prev.lat!==p.lat||prev.lng!==p.lng;
-  var accChanged=!prev||prev.accuracy!==p.accuracy||moved;
-  var headingChanged=!prev||
-      prev.heading!==p.heading||
-      prev.speed!==p.speed||
-      moved;
-
-  /*
-   * PRIORITÉ ABSOLUE :
-   * la nouvelle coordonnée est poussée immédiatement dans le rendu.
-   */
-  _gpsRenderPoint(p.lat,p.lng);
-
-  if(accChanged&&_gpsSources.circle){
-    _gpsSources.circle.setData(
-      _gpsCircle(p.lng,p.lat,Math.max(3,p.accuracy))
-    );
-  }
-
-  if(headingChanged&&_gpsSources.heading){
-    _gpsSources.heading.setData(
-      p.heading!=null&&p.speed!=null&&p.speed>1
-        ?_gpsHeadingWedge(
-            p.lng,p.lat,p.heading,
-            Math.max(15,Math.min(55,p.speed*1.2+12))
-          )
-        :emptyFC()
-    );
-  }
-
-  _gpsDisplayed={
-    lat:p.lat,lng:p.lng,
-    accuracy:p.accuracy,
-    speed:p.speed,heading:p.heading,
-    timestamp:p.timestamp,receivedAt:p.receivedAt,
-    rawLat:p.rawLat,rawLng:p.rawLng,
-    gpsJump:p.gpsJump,
-    jumpDistance:p.jumpDistance,
-    deltaMeters:p.deltaMeters
-  };
-
-  _gpsLastRendered={
-    lat:p.lat,lng:p.lng,accuracy:p.accuracy,
-    heading:p.heading,speed:p.speed,
-    receivedAt:p.receivedAt
-  };
-
-  _updateGpsStatus(p,false);
+function _gpsCameraNeedsFollow(lng,lat){
+  if(!_gpsFollow)return false;
+  try{
+    var p=map.project([lng,lat]);
+    var w=map.getCanvas().clientWidth,h=map.getCanvas().clientHeight;
+    if(!w||!h)return true;
+    return p.x<w*0.22||p.x>w*0.78||p.y<h*0.28||p.y>h*0.72;
+  }catch(e){return true;}
+}
+function _gpsMoveCamera(lng,lat,force){
+  if(!_gpsFollow)return;
+  if(!force&&!_gpsCameraNeedsFollow(lng,lat))return;
+  _gpsFollowingCamera=true;
+  try{
+    map.easeTo({center:[lng,lat],duration:260,essential:true});
+  }catch(e){}
+  setTimeout(function(){_gpsFollowingCamera=false;},300);
 }
 
-/*
- * Validation :
- * lat/lng valides + accuracy <=500 m.
- * Un saut est marqué pour diagnostic mais JAMAIS bloquant.
- */
 function _gpsAccept(pos){
   var c=pos&&pos.coords||{};
-  var lat=Number(c.latitude),
-      lng=Number(c.longitude),
-      acc=Number(c.accuracy);
-
+  var lat=Number(c.latitude),lng=Number(c.longitude),acc=Number(c.accuracy);
   if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+  if(!Number.isFinite(acc)||acc<=0)acc=999;
+  if(acc>GPS_MAX_ACCURACY)return null;
   if(lat<-90||lat>90||lng<-180||lng>180)return null;
 
-  if(!Number.isFinite(acc)||acc<=0)acc=GPS_MAX_ACCURACY;
-  if(acc>GPS_MAX_ACCURACY)return null;
-
   var receivedAt=Date.now();
-  var deviceTs=Number(pos.timestamp)||receivedAt;
-  if(!Number.isFinite(deviceTs)||Math.abs(receivedAt-deviceTs)>60000){
-    deviceTs=receivedAt;
-  }
-
+  var ts=Number(pos.timestamp)||receivedAt;
+  if(Math.abs(receivedAt-ts)>60000)ts=receivedAt;
   var speed=Number(c.speed);
   if(!Number.isFinite(speed)||speed<0||speed>100)speed=null;
-
   var heading=Number(c.heading);
   if(!Number.isFinite(heading)||heading<0||heading>=360)heading=null;
 
-  var raw={
-    lat:lat,lng:lng,accuracy:acc,
-    timestamp:deviceTs,receivedAt:receivedAt,
-    speed:speed,heading:heading,
-    gpsJump:false,deltaMeters:null,jumpDistance:0
-  };
-
-  if(_gpsLastRaw){
-    var dt=Math.max(.1,(receivedAt-_gpsLastRaw.receivedAt)/1000);
-    var d=_haversine(_gpsLastRaw.lat,_gpsLastRaw.lng,lat,lng);
-    raw.deltaMeters=d;
-    raw.jumpDistance=d;
-    raw.previousReceivedAt=_gpsLastRaw.receivedAt;
-
-    /*
-     * Diagnostic seulement :
-     * énorme saut en quelques secondes alors que vitesse annoncée très faible.
-     * Le fix reste accepté.
-     */
-    raw.gpsJump=(d>500&&dt<10&&speed!=null&&speed<2);
-  }
-
-  if(_gpsLastAccepted){
-    if(raw.deltaMeters!=null&&raw.deltaMeters>=.2){
-      _gpsSameCoordCount=0;
-    }else{
-      _gpsSameCoordCount++;
-    }
-  }else{
-    _gpsSameCoordCount=0;
-  }
+  var raw={lat:lat,lng:lng,accuracy:acc,timestamp:ts,receivedAt:receivedAt,speed:speed,heading:heading};
+  var key=lat.toFixed(7)+'|'+lng.toFixed(7);
+  if(key===_gpsLastCoordKey)_gpsSameCoordCount++;else _gpsSameCoordCount=0;
+  _gpsLastCoordKey=key;
 
   _gpsLastRaw=raw;
+  _gpsAccuracy=acc;
+  if(heading!==null)_gpsHeading=heading;
+  if(speed!==null)_gpsSpeed=speed;
   _gpsLastFixAt=receivedAt;
-  _gpsLastWatchEvent=receivedAt;
   _gpsFixCount++;
 
-  var displayed={
-    lat:raw.lat,lng:raw.lng,
-    accuracy:raw.accuracy,
-    speed:raw.speed,heading:raw.heading,
-    timestamp:raw.timestamp,receivedAt:raw.receivedAt,
-    rawLat:raw.lat,rawLng:raw.lng,
-    gpsJump:raw.gpsJump,
-    jumpDistance:raw.jumpDistance,
-    deltaMeters:raw.deltaMeters
-  };
+  /* Filtrage cosmétique très léger — il ne peut pas rejeter un fix. */
+  var display=_gpsFilter(raw);
+  _gpsFiltered=display;
+  raw.displayLat=display.lat;
+  raw.displayLng=display.lng;
+  raw.sameCoordCount=_gpsSameCoordCount;
 
-  _gpsLastAccepted=displayed;
-  _gpsDisplayTarget=displayed;
-
-  window.GPS={
-    last:displayed,
-    raw:raw,
-    filtered:displayed,
-    match:_gpsMatch,
-    accuracy:acc,
-    age:0,
-    count:_gpsFixCount,
-    jump:!!raw.gpsJump,
-    firefoxAndroid:_gpsFirefoxAndroid
-  };
-
-  return displayed;
+  return raw;
 }
 
-function _gpsCameraNeedsRecenter(p,force){
-  if(force||!_gpsCameraInitialized)return true;
-  try{
-    var size=map.getContainer(),
-        w=size.clientWidth,
-        h=size.clientHeight;
-
-    if(!w||!h)return true;
-
-    var pt=map.project([p.lng,p.lat]);
-
-    /*
-     * Zone sûre assez large :
-     * le point bleu peut vraiment se déplacer à l'écran avant
-     * que la caméra ne recentre.
-     */
-    return pt.x<w*.16||pt.x>w*.84||pt.y<h*.20||pt.y>h*.80;
-  }catch(e){
-    return false;
+function _gpsUpdateStatus(){
+  var b=document.getElementById('ver-badge');
+  if(!b)return;
+  var age=_gpsLastFixAt?Math.max(0,Date.now()-_gpsLastFixAt):0;
+  var txt=APP_VER+(navigator.onLine?' 🟢':' 🔴');
+  if(_gpsActive){
+    txt+=' | GPS '+(_gpsAccuracy<Infinity?'±'+Math.round(_gpsAccuracy)+'m':'…');
+    txt+=' | fixes '+_gpsFixCount;
+    if(age)txt+=' | '+Math.round(age/1000)+'s';
   }
-}
-
-function _gpsMoveCamera(p,force){
-  if(!_gpsFollowing||_gpsBackgrounded||!p||!_mapReady)return;
-  if(!_gpsCameraNeedsRecenter(p,force))return;
-
-  var now=Date.now();
-  if(!force&&now-_gpsLastCameraTs<350)return;
-  _gpsLastCameraTs=now;
-
-  var firstFix=!_gpsCameraInitialized;
-  _gpsCameraInitialized=true;
-  _gpsCameraMoving=true;
-
-  var targetZoom=map.getZoom();
-  if(firstFix&&targetZoom<14)targetZoom=16;
-
-  try{
-    map.easeTo({
-      center:[p.lng,p.lat],
-      zoom:targetZoom,
-      duration:firstFix?350:220,
-      essential:true
-    });
-  }catch(e){
-    _gpsCameraMoving=false;
-    return;
-  }
-
-  setTimeout(function(){
-    _gpsCameraMoving=false;
-  },firstFix?380:250);
-}
-
-function _gpsErrorMessage(e){
-  if(!e)return'erreur GPS';
-  if(e.code===1)return'autorisation refusée';
-  if(e.code===2)return'position indisponible';
-  if(e.code===3)return'délai GPS dépassé';
-  return'erreur GPS';
-}
-
-function _gpsDrawAndMatch(p,force){
-  if(!p)return;
-
-  /* 1 — POINT BLEU : toujours avant le PK */
-  _gpsRenderFix(p);
-  _gpsMoveCamera(p,!!force);
-
-  /* 2 — PK : indépendant et throttlé */
-  if(p.accuracy>GPS_PK_MAX_ACCURACY){
-    _gpsMatch=null;
-    if(window.GPS)window.GPS.match=null;
-    _updateGpsStatus(p,false);
-    return;
-  }
-
-  var now=Date.now();
-  if(force||now-_gpsLastPKUpdate>=GPS_PK_THROTTLE_MS){
-    _gpsLastPKUpdate=now;
-    var snapshot={
-      lat:p.lat,lng:p.lng,accuracy:p.accuracy,
-      speed:p.speed,heading:p.heading,
-      timestamp:p.timestamp,receivedAt:p.receivedAt
-    };
-
-    setTimeout(function(){
-      try{
-        var m=_bestPkMetricMatch(snapshot);
-        if(m){
-          _gpsMatch=m;
-          if(window.GPS)window.GPS.match=m;
-          _updateGpsStatus(_gpsLastAccepted||snapshot,false);
-        }
-      }catch(e){
-        console.warn('PK match:',e);
-      }
-    },0);
-  }
+  b.textContent=txt;
+  b.title=_gpsLastRaw
+    ?('lat '+_gpsLastRaw.lat.toFixed(6)+' | lng '+_gpsLastRaw.lng.toFixed(6)+' | acc ±'+Math.round(_gpsLastRaw.accuracy)+'m | fixes '+_gpsFixCount+' | mêmes coords '+_gpsSameCoordCount)
+    :'GPS inactif';
 }
 
 function _gpsClearWatchdog(){
-  if(_gpsWatchdog){
-    clearInterval(_gpsWatchdog);
-    _gpsWatchdog=null;
-  }
-  if(_gpsRestartTimer){
-    clearTimeout(_gpsRestartTimer);
-    _gpsRestartTimer=null;
-  }
-  if(_gpsRetryTimer){
-    clearTimeout(_gpsRetryTimer);
-    _gpsRetryTimer=null;
-  }
-  if(_gpsNoFixTimer){
-    clearTimeout(_gpsNoFixTimer);
-    _gpsNoFixTimer=null;
-  }
+  if(_gpsWatchdog){clearInterval(_gpsWatchdog);_gpsWatchdog=null;}
+  if(_gpsWatchdogTimer){clearTimeout(_gpsWatchdogTimer);_gpsWatchdogTimer=null;}
 }
-
-function _gpsStopNativeWatch(){
-  _gpsSessionId++;
-  if(_gpsWatch!==null){
-    try{navigator.geolocation.clearWatch(_gpsWatch);}catch(e){}
-    _gpsWatch=null;
-  }
-  _setLocateButton();
-}
-
-function _gpsStartWatch(){
-  if(
-    !navigator.geolocation||
-    _gpsWatch!==null||
-    _gpsRestarting||
-    _gpsBackgrounded
-  )return false;
-
-  var session=++_gpsSessionId;
-  _gpsLastWatchEvent=Date.now();
-
-  try{
-    _gpsWatch=navigator.geolocation.watchPosition(
-      function(pos){
-        if(session!==_gpsSessionId||_gpsBackgrounded)return;
-
-        _gpsLastWatchEvent=Date.now();
-
-        var p=_gpsAccept(pos);
-        if(!p)return;
-
-        /*
-         * Le point bleu est dessiné immédiatement.
-         * Le PK n'est lancé qu'après.
-         */
-        _gpsDrawAndMatch(p,false);
-      },
-      function(e){
-        if(session!==_gpsSessionId||_gpsBackgrounded)return;
-
-        _gpsLastWatchEvent=Date.now();
-
-        if(e&&e.code===3){
-          /* Firefox peut déclencher un timeout sans que le watcher
-             soit définitivement mort : on relance proprement. */
-          showNetToast(
-            _gpsFirefoxAndroid
-              ? '📍 Firefox : relance du GPS…'
-              : '📍 GPS : nouvelle acquisition…'
-          );
-          if(_gpsWanted&&!_gpsRestarting){
-            setTimeout(function(){
-              if(
-                _gpsWanted&&
-                !_gpsBackgrounded&&
-                session===_gpsSessionId&&
-                _gpsWatch!==null
-              ){
-                _gpsRestartWatch();
-              }
-            },500);
-          }
-        }else{
-          showNetToast('📍 '+_gpsErrorMessage(e));
-        }
-
-        _updateGpsStatus(_gpsLastAccepted,true);
-      },
-      {
-        enableHighAccuracy:true,
-        maximumAge:0,
-        timeout:GPS_WATCH_TIMEOUT
-      }
-    );
-  }catch(e){
-    _gpsWatch=null;
-    showNetToast('📍 GPS non disponible dans ce navigateur');
-    return false;
-  }
-
-  _setLocateButton();
-  return true;
-}
-
-function _gpsRestartWatch(){
-  if(
-    _gpsRestarting||
-    !navigator.geolocation||
-    !_gpsWanted||
-    _gpsBackgrounded
-  )return;
-
-  _gpsRestarting=true;
-
-  _gpsStopNativeWatch();
-
-  _gpsRestartTimer=setTimeout(function(){
-    _gpsRestartTimer=null;
-    _gpsRestarting=false;
-
-    if(!_gpsWanted||_gpsBackgrounded)return;
-
-    var fixBefore=_gpsLastFixAt;
-
-    if(!_gpsStartWatch())return;
-
-    _setLocateButton();
-
-    /*
-     * Si aucun nouveau fix n'arrive après 4 s,
-     * on autorise une nouvelle relance.
-     */
-    _gpsRetryTimer=setTimeout(function(){
-      _gpsRetryTimer=null;
-
-      if(
-        _gpsWanted&&
-        !_gpsBackgrounded&&
-        _gpsWatch!==null&&
-        _gpsLastFixAt===fixBefore
-      ){
-        _gpsRestartWatch();
-      }
-    },4000);
-  },300);
-}
-
 function _gpsStartWatchdog(){
   _gpsClearWatchdog();
-
   _gpsWatchdog=setInterval(function(){
-    if(_gpsWatch===null||_gpsBackgrounded)return;
-
+    if(!_gpsActive||_gpsWatchId===null||_gpsRestarting)return;
     var silence=Date.now()-_gpsLastWatchEvent;
-
-    if(silence>GPS_STALE_MS){
-      _updateGpsStatus(_gpsLastAccepted,true);
-    }
-
-    /*
-     * Adaptation Firefox Android :
-     * si le navigateur ne fournit plus de callback, on recrée le watcher.
-     */
-    if(silence>12000&&!_gpsRestarting){
-      _gpsRestartWatch();
-    }
-  },3000);
+    if(silence>15000)_gpsRestartWatch();
+  },5000);
+}
+function _gpsRestartWatch(){
+  if(_gpsRestarting||!_gpsActive||!navigator.geolocation)return;
+  _gpsRestarting=true;
+  _gpsSession++;
+  var beforeFix=_gpsFixCount;
+  if(_gpsWatchId!==null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(e){} _gpsWatchId=null;}
+  setTimeout(function(){
+    _gpsRestarting=false;
+    if(!_gpsActive&&!_gpsDesired)return;
+    _gpsStart();
+    _gpsRestartTimer=setTimeout(function(){
+      if(_gpsActive&&_gpsFixCount===beforeFix)_gpsRestartWatch();
+    },4000);
+  },250);
 }
 
-function startLiveLocation(follow){
-  if(!navigator.geolocation){
-    showNetToast('📍 Géolocalisation indisponible');
+function _gpsStart(){
+  if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible.');return false;}
+  if(_gpsWatchId!==null)return true;
+  _gpsDesired=true;
+  _gpsActive=true;
+  _gpsFollow=true;
+  _gpsSession++;
+  _gpsFiltered=null;
+  _gpsLastRaw=null;
+  _gpsLastFixAt=0;
+  _gpsSameCoordCount=0;
+  _gpsLastCoordKey='';
+  _gpsFixCount=0;
+  _gpsLastWatchEvent=Date.now();
+  _gpsAccuracy=Infinity;
+  _gpsHeading=null;
+  _gpsSpeed=0;
+
+  showNetToast('📡 GPS haute précision actif…');
+  var session=_gpsSession;
+  try{
+    _gpsWatchId=navigator.geolocation.watchPosition(function(pos){
+      if(session!==_gpsSession)return;
+      _gpsLastWatchEvent=Date.now();
+      var raw=_gpsAccept(pos);
+      if(!raw)return;
+
+      /* PRIORITÉ ABSOLUE : le point bleu est rendu immédiatement. */
+      _gpsRender(raw,{lat:raw.displayLat,lng:raw.displayLng},raw.accuracy,raw.heading!==null?raw.heading:_gpsHeading);
+      _gpsMoveCamera(raw.displayLng,raw.displayLat,false);
+      _gpsUpdateStatus();
+
+      showNetToast('📍 ±'+Math.round(raw.accuracy)+' m'+
+        (raw.accuracy<=10?' · GPS très précis':raw.accuracy<=25?' · GPS précis':' · GPS actif…'));
+
+      /* PK entièrement asynchrone et throttlé. */
+      if(raw.accuracy<=80)_scheduleLiveNearest(raw.displayLat,raw.displayLng,raw.accuracy);
+    },function(e){
+      if(session!==_gpsSession)return;
+      _gpsLastWatchEvent=Date.now();
+      if(e&&e.code===1){
+        _gpsDesired=false;_gpsActive=false;
+        if(_gpsWatchId!==null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(_){}} _gpsWatchId=null;
+        _gpsClearWatchdog();
+      }
+      var msg=e&&e.code===1?'permission refusée':e&&e.code===2?'position indisponible':e&&e.code===3?'délai GPS dépassé':'erreur GPS';
+      showNetToast('📍 '+msg);
+      _gpsUpdateStatus();
+    },{
+      enableHighAccuracy:true,
+      maximumAge:0,
+      timeout:15000
+    });
+  }catch(e){
+    _gpsWatchId=null;
+    _gpsActive=false;
+    showNetToast('📍 GPS non disponible dans Firefox');
     return false;
   }
-
-  _gpsWanted=true;
-  _gpsBackgrounded=false;
-
-  if(typeof follow==='boolean'){
-    _gpsFollowing=follow;
-  }
-
-  if(_gpsWatch!==null){
-    _setLocateButton();
-    if(_gpsLastAccepted)_gpsMoveCamera(_gpsLastAccepted,true);
-    return true;
-  }
-
-  _gpsResetState();
-  _gpsEnsureLayers();
-
-  showNetToast(
-    _gpsFirefoxAndroid
-      ? '📡 Firefox Android : acquisition GPS haute précision…'
-      : '📡 GPS haute précision — acquisition…'
-  );
-
-  if(!_gpsStartWatch())return false;
-
   _gpsStartWatchdog();
-  _setLocateButton();
-
-  /*
-   * Si Firefox Android n'envoie absolument aucun callback dans les 8 s,
-   * une seule relance est effectuée. Cela ne crée jamais un deuxième watcher.
-   */
-  _gpsNoFixTimer=setTimeout(function(){
-    _gpsNoFixTimer=null;
-    if(
-      _gpsWanted&&
-      !_gpsBackgrounded&&
-      _gpsWatch!==null&&
-      _gpsFixCount===0&&
-      !_gpsRestarting
-    ){
-      _gpsRestartWatch();
-    }
-  },8000);
-
+  _gpsUpdateStatus();
   return true;
 }
-
-function stopLiveLocation(){
-  _gpsWanted=false;
-  _gpsBackgrounded=false;
-  _gpsRestarting=false;
-
-  _gpsStopNativeWatch();
+function stopLocateMe(){
+  _gpsDesired=false;
+  _gpsSession++;
   _gpsClearWatchdog();
-  _gpsResetState();
-
-  _setLocateButton();
-  _updateGpsStatus(null,true);
-  showNetToast('📍 Suivi GPS arrêté');
+  if(_gpsWatchId!==null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(e){} _gpsWatchId=null;}
+  _gpsActive=false;
+  _gpsFollowingCamera=false;
 }
-
 function locateMe(){
-  if(_gpsWatch===null){
-    startLiveLocation(true);
-    return;
-  }
-
-  _gpsWanted=true;
-  _gpsFollowing=true;
-  _setLocateButton();
-
-  if(_gpsLastAccepted){
-    _gpsMoveCamera(_gpsLastAccepted,true);
-  }
-
-  showNetToast(
-    _gpsFirefoxAndroid
-      ? '📍 Suivi GPS actif — Firefox Android'
-      : '📍 Suivi temps réel actif'
-  );
-}
-
-window.locateMe=locateMe;
-window.startLiveLocation=startLiveLocation;
-window.stopLiveLocation=stopLiveLocation;
-
-map.on('dragstart',function(){
-  if(_gpsWatch!==null&&!_gpsCameraMoving){
-    _gpsFollowing=false;
-    _setLocateButton();
-    _updateGpsStatus(_gpsLastAccepted,true);
-  }
-});
-
-map.on('zoomstart',function(){
-  if(_gpsWatch!==null&&!_gpsCameraMoving){
-    _gpsFollowing=false;
-    _setLocateButton();
-  }
-});
-
-map.on('rotatestart',function(){
-  if(_gpsWatch!==null&&!_gpsCameraMoving){
-    _gpsFollowing=false;
-    _setLocateButton();
-  }
-});
-
-/* Firefox Android / retour d'application / écran */
-function _gpsPauseLifecycle(){
-  if(!_gpsWanted)return;
-
-  _gpsBackgrounded=true;
-  _gpsRestarting=false;
-
-  _gpsStopNativeWatch();
-  _gpsClearWatchdog();
-
-  _updateGpsStatus(_gpsLastAccepted,true);
-}
-
-function _gpsResumeLifecycle(){
-  if(!_gpsWanted)return;
-
-  _gpsBackgrounded=false;
-
-  /*
-   * On ne conserve volontairement AUCUNE ancienne position.
-   * Le nouveau watcher doit produire un nouveau fix.
-   */
-  _gpsResetState();
-  _gpsEnsureLayers();
-  _gpsLastStatusTs=0;
-
-  if(_gpsStartWatch()){
-    _gpsStartWatchdog();
-
-    _gpsRetryTimer=setTimeout(function(){
-      _gpsRetryTimer=null;
-      if(
-        _gpsWanted&&
-        !_gpsBackgrounded&&
-        _gpsWatch!==null&&
-        _gpsFixCount===0
-      ){
-        _gpsRestartWatch();
-      }
-    },5000);
-  }
-}
-
-map.once('load',function(){
-  _setLocateButton();
-  _updateGpsStatus(null,true);
-
-  if(navigator.geolocation){
-    startLiveLocation(true);
-  }
-});
-
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='hidden'){
-    _gpsPauseLifecycle();
+  if(!_gpsActive||_gpsWatchId===null){
+    _gpsFollow=true;
+    if(!_gpsStart())return;
   }else{
-    _gpsResumeLifecycle();
+    _gpsFollow=!_gpsFollow;
   }
-});
+  if(_gpsFollow&&_gpsFiltered)_gpsMoveCamera(_gpsFiltered.lng,_gpsFiltered.lat,true);
+  showNetToast(_gpsFollow?'📍 Suivi temps réel actif':'📍 Point bleu actif · carte libre');
+}
+window.locateMe=locateMe;
+window.stopLocateMe=stopLocateMe;
 
-window.addEventListener('pagehide',function(){
-  _gpsPauseLifecycle();
-});
+/* Interaction manuelle : elle libère uniquement la caméra, jamais le GPS. */
+map.on('dragstart',function(){if(_gpsActive&&!_gpsFollowingCamera)_gpsFollow=false;});
+map.on('zoomstart',function(){if(_gpsActive&&!_gpsFollowingCamera)_gpsFollow=false;});
+map.on('rotatestart',function(){if(_gpsActive&&!_gpsFollowingCamera)_gpsFollow=false;});
+function resumeGpsFollow(){
+  if(!_gpsFiltered)return;
+  _gpsFollow=true;
+  _gpsMoveCamera(_gpsFiltered.lng,_gpsFiltered.lat,true);
+}
+window.resumeGpsFollow=resumeGpsFollow;
 
+/* Reprise Firefox Android : on conserve le watcher quand possible, sinon on le relance. */
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible'||!_gpsDesired)return;
+  var silence=_gpsLastWatchEvent?Date.now()-_gpsLastWatchEvent:Infinity;
+  if(_gpsWatchId===null||silence>8000)_gpsRestartWatch();
+  else if(_gpsFiltered&&_gpsFollow)_gpsMoveCamera(_gpsFiltered.lng,_gpsFiltered.lat,true);
+  _gpsUpdateStatus();
+});
 window.addEventListener('pageshow',function(){
-  _gpsResumeLifecycle();
+  if(!_gpsDesired)return;
+  if(_gpsWatchId===null)_gpsStart();
+  else if(_gpsFiltered&&_gpsFollow)_gpsMoveCamera(_gpsFiltered.lng,_gpsFiltered.lat,true);
+  _gpsUpdateStatus();
+});
+window.addEventListener('pagehide',function(){
+  /* Aucune position n'est écrite en localStorage. Le GPS reprend à pageshow. */
 });
 
-function _getFreshHighAccuracyPosition(done){
-  if(_gpsWatch===null)startLiveLocation(false);
-  var started=Date.now(),lastTs=_gpsLastAccepted?_gpsLastAccepted.receivedAt:0;
-  function wait(){
-    if(_gpsLastAccepted&&_gpsLastAccepted.receivedAt>lastTs&&_gpsAge(_gpsLastAccepted)<=3000&&_gpsLastAccepted.accuracy<=GPS_PK_MAX_ACCURACY){
-      done(_gpsLastAccepted);return;
-    }
-    if(Date.now()-started>9000){done(null);return;}
-    setTimeout(wait,180);
+/* L'application démarre automatiquement uniquement si Firefox a déjà donné l'autorisation. */
+map.once('load',function(){
+  if(!navigator.geolocation)return;
+  if(navigator.permissions&&navigator.permissions.query){
+    navigator.permissions.query({name:'geolocation'}).then(function(r){
+      if(r.state==='granted')_gpsStart();
+    }).catch(function(){});
   }
-  wait();
+});
+
+/* Recherche PK 1m : elle reste découplée du GPS. */
+var _liveNearestTimer=null,_lastNearestPK=null,_pkSearchBusy=false;
+var _liveNearestPending=null,_liveNearestLastTs=0;
+function _scheduleLiveNearest(lat,lng,acc){
+  _liveNearestPending={lat:lat,lng:lng,acc:acc};
+  var now=Date.now(),wait=Math.max(0,GPS_PK_THROTTLE_MS-(now-_liveNearestLastTs));
+  if(_liveNearestTimer)return;
+  _liveNearestTimer=setTimeout(function(){
+    _liveNearestTimer=null;
+    var q=_liveNearestPending;_liveNearestPending=null;
+    if(!q)return;
+    _liveNearestLastTs=Date.now();
+    _forceNearestPK1m(q.lat,q.lng,q.acc);
+  },wait);
+}
+function _forceNearestPK1m(lat,lng,acc){
+  if(_pkSearchBusy||!map.getSource('pk_metric'))return;
+  _pkSearchBusy=true;
+  var work=function(){
+    var npk=null,best=Infinity;
+    try{
+      var fs=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'});
+      fs.forEach(function(f){
+        if(!f.geometry||f.geometry.type!=='Point')return;
+        var d=_haversine(lat,lng,f.geometry.coordinates[1],f.geometry.coordinates[0]);
+        if(d<best){best=d;npk={f:{props:f.properties,geom:f.geometry},d:d};}
+      });
+    }catch(e){console.warn('PK1m live:',e);}
+    if(npk){_lastNearestPK=npk;window._lastNearestPK=npk;}
+    _pkSearchBusy=false;
+  };
+  /* Pas de déplacement de caméra ici : le PK ne doit jamais piloter le point bleu. */
+  if(map.getLayer('pkm-query')||map.getLayer('pkm1-symbol')||map.getLayer('pkm10-symbol')){
+    setTimeout(work,0);
+  }else{
+    _pkSearchBusy=false;
+  }
 }
 
-/* ── Bouton PK? : cherche le PK / Accès / PAM le plus proche ── */
-var _pkFindBusy=false;
-function findNearest(){
-  if(_pkFindBusy)return;
-  _pkFindBusy=true;
-  if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible');_pkFindBusy=false;return;}
-  if(!map.getSource('pk_metric')||!map.getLayer('pkm1-hit')){
-    openDetail('📍 PK le plus proche','<div style="padding:16px">PK métrique indisponible.</div>');_pkFindBusy=false;return;
-  }
-  openDetail('📍 Éléments LGV proches','<div style="padding:18px;text-align:center;color:#888"><p style="font-size:14px;margin:0">📡 Position GPS haute précision…</p><p style="font-size:11px;margin-top:8px">Mesure fraîche obligatoire avant le calcul PK.</p></div>');
-  _getFreshHighAccuracyPosition(function(p){
-    if(!p){closeDetail();showNetToast('📍 Position GPS indisponible ou précision insuffisante');_pkFindBusy=false;return;}
-    _gpsFollowing=true;_setLocateButton();
-    /* Correctif v4.12 : _drawGps → _drawGpsFix (l'ancien nom n'existe plus) */
-    _drawGpsFix(p,true);
-    map.easeTo({center:[p.lng,p.lat],zoom:Math.max(map.getZoom(),19.5),duration:260,essential:true});
-    var start=Date.now(),done=false;
-    function run(){
-      if(done)return;
-      _refreshPkMetricCache(p);
-      var m=_bestPkMetricMatch(p);
-      if(m){done=true;_finishFindNearest(p.lat,p.lng,p.accuracy);_pkFindBusy=false;return;}
-      if(Date.now()-start>=6500){done=true;_finishFindNearest(p.lat,p.lng,p.accuracy);_pkFindBusy=false;return;}
-      setTimeout(run,250);
-    }
-    map.once('idle',run);
-    setTimeout(run,350);
-  });
-}
-window.findNearest=findNearest;
 
-/* ══════════════════════════════════════════════════════════
-   PK MÉTRIQUE : cache + map-matching
-   ══════════════════════════════════════════════════════════ */
-var _pkMetricCache=new Map();
-var _pkMetricLastRefresh=0;
-var _pkMetricLastCenter=null;
-var _pkMatchState={last:null};
-
-function _pkMetricKey(f){
-  var co=f.geometry&&f.geometry.coordinates||[],p=f.properties||{};
-  var pk=p._pk_label!=null?p._pk_label:p.pk;
-  return co.length>=2?co[0].toFixed(7)+'|'+co[1].toFixed(7)+'|'+String(pk||''):'';
-}
-function _refreshPkMetricCache(center){
-  if(!map.getSource('pk_metric'))return 0;
-  var now=Date.now();
-  if(now-_pkMetricLastRefresh<180)return 0;
-  _pkMetricLastRefresh=now;
-  var fs=[];
-  try{
-    fs=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'});
-    fs.forEach(function(f){
-      if(!f.geometry||f.geometry.type!=='Point')return;
-      var k=_pkMetricKey(f);if(!k)return;
-      var old=_pkMetricCache.get(k);
-      if(old)old.seenAt=now;
-      else _pkMetricCache.set(k,{props:Object.assign({},f.properties),geom:{type:'Point',coordinates:f.geometry.coordinates.slice()},seenAt:now});
-    });
-  }catch(e){console.warn('PK cache:',e);}
-  _pkMetricLastCenter=center||_pkMetricLastCenter;
-  if(center)_pkMetricCache.forEach(function(v,k){
-    if(_haversine(center.lat,center.lng,v.geom.coordinates[1],v.geom.coordinates[0])>2200
-       && now-v.seenAt>4000)_pkMetricCache.delete(k);
-  });
-  if(_pkMetricCache.size>16000){
-    var a=[];_pkMetricCache.forEach(function(v,k){a.push([k,v.seenAt]);});
-    a.sort(function(x,y){return x[1]-y[1];});
-    for(var i=0;i<Math.max(0,a.length-12000);i++)_pkMetricCache.delete(a[i][0]);
-  }
-  return fs.length;
-}
-function _parsePKMeters(lbl){
-  if(lbl==null)return -1;
-  var s=String(lbl).trim(),m=s.match(/^(\d+)\s*\+\s*(\d{1,3})$/);
-  if(m)return parseInt(m[1],10)*1000+parseInt(m[2],10);
-  var n=Number(s);return isFinite(n)?Math.round(n):-1;
-}
-function _pkMetricLabel(p){
-  var raw=p&&p._pk_label!=null?p._pk_label:(p&&p.pk!=null?p.pk:null);
-  if(raw==null||raw==='')return '';
-  var t=String(raw);
-  if(t.indexOf('+')>=0)return t;
-  var n=Number(raw);if(!isFinite(n))return t;
-  return Math.floor(n/1000)+'+'+('000'+Math.round(n%1000)).slice(-3);
-}
-function _metricRenderedCandidates(lat,lng){
-  if(!map.getLayer('pkm1-hit'))return[];
-  try{
-    var pt=map.project([lng,lat]);
-    var acc=(_gpsLastRaw&&isFinite(_gpsLastRaw.accuracy))?_gpsLastRaw.accuracy:20;
-    var radiusM=Math.max(25,Math.min(100,acc*2.4+10));
-    var mpp=Math.max(.05,156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,map.getZoom()));
-    var rp=Math.max(20,Math.min(500,radiusM/mpp));
-    return map.queryRenderedFeatures([[pt.x-rp,pt.y-rp],[pt.x+rp,pt.y+rp]],{layers:['pkm1-hit']});
-  }catch(e){return[];}
-}
-function _candidatePool(lat,lng){
-  var a=_metricRenderedCandidates(lat,lng),b=[],seen={},out=[];
-  _pkMetricCache.forEach(function(f){
-    if(_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0])<=110)b.push(f);
-  });
-  a.concat(b).forEach(function(f){
-    var k=_pkMetricKey(f);if(k&&!seen[k]){seen[k]=1;out.push({props:f.properties||{},geom:f.geometry});}
-  });
-  return out;
-}
-function _pkCandidateScore(f,p){
-  var co=f.geom.coordinates,d=_haversine(p.lat,p.lng,co[1],co[0]);
-  if(p.accuracy>GPS_PK_MAX_ACCURACY)return null;
-  var maxD=Math.max(15,Math.min(100,p.accuracy*2.45+8));
-  if(d>maxD)return null;
-  var voie=String(f.props._voie||f.props.voie||f.props.VOIE||'').trim().toUpperCase();
-  var pk=_parsePKMeters(f.props._pk_label!=null?f.props._pk_label:f.props.pk);
-  var score=d,last=_pkMatchState.last;
-  if(last){
-    var dt=_gpsClamp((p.timestamp-last.timestamp)/1000,.25,5);
-    var speed=p.speed!=null?p.speed:last.speed||0;
-    var expected=Math.max(0,Math.min(140,speed*dt));
-    if(last.voie&&voie){
-      if(last.voie!==voie)score+=25;
-      else if(last.pkMeters>=0&&pk>=0){
-        var delta=pk-last.pkMeters,absDelta=Math.abs(delta),allowed=Math.max(80,expected*3+60);
-        if(absDelta>allowed)score+=(absDelta-allowed)*2.5;
-        if(expected>6&&p.heading!=null&&absDelta>4){
-          var bearing=_gpsBearing(last.lat,last.lng,co[1],co[0]);
-          var ad=Math.abs(((bearing-p.heading+540)%360)-180);
-          if(ad>45)score+=(ad-45)*.8;
-        }
-      }
-    }
-    var geoD=_haversine(last.lat,last.lng,co[1],co[0]);
-    var geoAllowed=Math.max(90,expected*3+80);
-    if(geoD>geoAllowed)score+=(geoD-geoAllowed)*1.6;
-  }
-  return {f:f,d:d,score:score,voie:voie,pkMeters:pk};
-}
-function _bestPkMetricMatch(p){
-  if(!p||p.accuracy>GPS_PK_MAX_ACCURACY)return null;
-  _refreshPkMetricCache(p);
-  var pool=_candidatePool(p.lat,p.lng),cand=[];
-  pool.forEach(function(f){var x=_pkCandidateScore(f,p);if(x)cand.push(x);});
-  cand.sort(function(a,b){return a.score-b.score;});
-  if(!cand.length)return null;
-  var best=cand[0],last=_pkMatchState.last;
-  if(last&&last.voie&&best.voie&&best.voie!==last.voie){
-    var same=cand.find(function(x){return x.voie===last.voie;});
-    if(same&&best.score+10>=same.score)best=same;
-  }
-  var co=best.f.geom.coordinates,label=_pkMetricLabel(best.f.props);
-  var out={lat:co[1],lng:co[0],d:best.d,score:best.score,voie:best.voie,label:label,pkMeters:best.pkMeters,props:best.f.props,geom:best.f.geom,timestamp:p.timestamp,speed:p.speed};
-  _pkMatchState.last=out;
-  return out;
-}
-
-/* ══════════════════════════════════════════════════════════
-   DÉTECTION PK / ACCÈS / PAM LE PLUS PROCHE (findNearest)
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// DETECTION PK / ACCES / PAM LE PLUS PROCHE
+// ══════════════════════════════════════════════════════════
 function _haversine(lat1,lng1,lat2,lng2){
   var R=6371000,r=Math.PI/180;
   var dLat=(lat2-lat1)*r,dLng=(lng2-lng1)*r;
@@ -2325,46 +1475,120 @@ function _nearestN(lat,lng,features,n){
   scored.sort(function(a,b){return a.d-b.d;});
   return scored.slice(0,n);
 }
-function _dStr(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
+function _dStr(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
+function findNearest(){
+  if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible.');return;}
+  openDetail('📍 Éléments LGV proches',
+    '<div style="padding:20px;text-align:center;color:#888">'+
+    '<p style="font-size:14px;margin:0">⏳ Localisation GPS…</p>'+
+    '<p style="font-size:10px;margin-top:8px;line-height:1.5;color:#aaa">Utilisation du même watcher GPS que le point bleu.</p></div>');
 
+  if(!_gpsActive||_gpsWatchId===null)_gpsStart();
+  var started=Date.now();
+  var initialTs=_gpsLastRaw?_gpsLastRaw.receivedAt:0;
+  function waitForFix(){
+    if(_gpsLastRaw&&_gpsLastRaw.receivedAt>initialTs&&_gpsLastRaw.accuracy<=80){
+      var p=_gpsLastRaw;
+      if(_gpsFiltered){
+        _gpsMoveCamera(_gpsFiltered.lng,_gpsFiltered.lat,true);
+      }
+      var done=false;
+      function finish(){
+        if(done)return;done=true;map.off('idle',finish);
+        _finishFindNearest(p.lat,p.lng,p.accuracy);
+      }
+      map.once('idle',finish);
+      setTimeout(finish,1800);
+      return;
+    }
+    if(Date.now()-started>9000){
+      closeDetail();
+      showNetToast(_gpsLastRaw
+        ?'📍 GPS trop imprécis pour le calcul PK (±'+Math.round(_gpsLastRaw.accuracy)+' m)'
+        :'📍 Aucun nouveau fix GPS reçu');
+      return;
+    }
+    setTimeout(waitForFix,180);
+  }
+  waitForFix();
+}
+window.findNearest=findNearest;
+
+/* Extrait le côté (1 ou 2) depuis n'importe quel nom de voie/axe */
+function _sideNum(v){var m=String(v||'').match(/[12]/);return m?m[0]:'';}
+
+/* Normalise un nom de voie/axe en {b:branche_canonique, s:côté}
+ *
+ * Conventions dans les données :
+ *   PK (_voie)  : LGV1, V1, RMS1, R1MS, RJ2, RV1 …
+ *   Accès (AXE) : LGV V1, MS1, JU2, VN1 …      (sans préfixe R)
+ *   PAM  (axe)  : LGV (générique), MS1, JU2, VN1…
+ *
+ * Règles :
+ *  1. LGV1 / V1 / LGV V1          → {b:'lgv', s:'1'}
+ *     LGV2 / V2 / LGV V2          → {b:'lgv', s:'2'}
+ *     LGV / LGV BMC / LGV V5 …   → {b:'lgv', s:''} générique
+ *
+ *  2. Avec préfixe R (format PK) :
+ *     R<LETTRES><CHIFFRE> ou R<CHIFFRE><LETTRES>
+ *     Aliases R-only : RJ→JU, RV→VN (noms différents côté Accès/PAM)
+ *
+ *  3. Sans préfixe R (format Accès/PAM) :
+ *     <LETTRES><CHIFFRE> ou <CHIFFRE><LETTRES>  →  branche = lettres telles quelles
+ *     PAS d'alias ici : V sans R = LGV (déjà géré en #1), VN = Villeneuve
+ */
 function _parseVoie(v){
   var raw=String(v||'').trim().toUpperCase();
   if(!raw)return{b:'',s:''};
-  if(raw==='LGV1'||raw==='V1'||raw==='LGV V1')return{b:'lgv',s:'1'};
-  if(raw==='LGV2'||raw==='V2'||raw==='LGV V2')return{b:'lgv',s:'2'};
+
+  /* 1 — LGV main line (toutes variantes connues) */
+  if(raw==='LGV1'||raw==='V1')          return{b:'lgv',s:'1'};
+  if(raw==='LGV2'||raw==='V2')          return{b:'lgv',s:'2'};
+  if(raw==='LGV V1')                    return{b:'lgv',s:'1'};
+  if(raw==='LGV V2')                    return{b:'lgv',s:'2'};
   if(raw==='LGV'||/^LGV[\s]/.test(raw))return{b:'lgv',s:''};
-  var mR=raw.match(/^R([A-Z]+?)([12])$/)||raw.match(/^R([12])([A-Z]+)$/);
-  if(mR){
-    var letters,digit;
-    if(/^[12]$/.test(mR[1])){digit=mR[1];letters=mR[2];}
-    else{letters=mR[1];digit=mR[2];}
-    var RMAP={J:'JU',V:'VN'};
-    return{b:(RMAP[letters]||letters).toLowerCase(),s:digit};
+
+  /* 2 — Format PK avec R (ex: RMS1, R1MS, RJ2, RV1) */
+  var mR =raw.match(/^R([A-Z]+?)([12])$/);   /* R + lettres + chiffre */
+  var mRi=raw.match(/^R([12])([A-Z]+)$/);    /* R + chiffre + lettres */
+  if(mR||mRi){
+    var letters2,digit2;
+    if(mR){letters2=mR[1];digit2=mR[2];}
+    else  {letters2=mRi[2];digit2=mRi[1];}
+    var RMAP={J:'JU',V:'VN'};              /* alias uniquement avec R */
+    return{b:(RMAP[letters2]||letters2).toLowerCase(),s:digit2};
   }
+
+  /* 3 — Format Accès/PAM sans R (ex: MS1, VN1, JU2, CA2) */
   var m=raw.match(/^([A-Z]+?)([12])$/)||raw.match(/^([12])([A-Z]+)$/);
   if(!m)return{b:raw.toLowerCase(),s:''};
   var letters3,digit3;
   if(/^[12]$/.test(m[1])){digit3=m[1];letters3=m[2];}
-  else{letters3=m[1];digit3=m[2];}
+  else                    {letters3=m[1];digit3=m[2];}
   return{b:letters3.toLowerCase(),s:digit3};
 }
 
 function _finishFindNearest(lat,lng,acc){
-  var live={lat:lat,lng:lng,accuracy:acc,timestamp:Date.now(),
-            speed:(_gpsLastAccepted&&_gpsLastAccepted.speed)||0,
-            heading:(_gpsLastAccepted&&_gpsLastAccepted.heading!=null)?_gpsLastAccepted.heading:null};
-  var metric=_bestPkMetricMatch(live),npk=null,pkPrec='';
-  if(metric){npk={f:{props:metric.props,geom:metric.geom},d:metric.d};pkPrec='PK métrique 1 m · map-matching';}
-  if(!npk&&_pkHData&&_pkHData.features&&_pkHData.features.length){
-    var hs=_pkHData.features.map(function(f){return{f:{props:f.properties,geom:f.geometry},d:_haversine(lat,lng,f.geometry.coordinates[1],f.geometry.coordinates[0])};});
-    hs.sort(function(a,b){return a.d-b.d;});
-    if(hs.length){npk=hs[0];pkPrec='secours PK 100 m';}
+  var npk=_lastNearestPK||null, pkPrec=npk?'1m':'1m (chargement)';
+  if(npk && _gpsFiltered){
+    /* invalide un résultat ancien s'il est trop éloigné du nouveau GPS */
+    if(_haversine(lat,lng,npk.f.geom.coordinates[1],npk.f.geom.coordinates[0])>80)npk=null;
   }
-  if(!npk&&layerData.pk.length){npk=_nearestOf(lat,lng,layerData.pk);if(npk)pkPrec='secours PK 1 km';}
+  console.log('_finishFindNearest: lat='+lat.toFixed(5)+' lng='+lng.toFixed(5)+' layerData.pk='+layerData.pk.length);
 
+  /* PK 1m uniquement : le helper _forceNearestPK1m charge/interroge pk_metric. */
+  if(!npk){ _forceNearestPK1m(lat,lng,acc); }
+
+  console.log('_finishFindNearest: résultat prec='+pkPrec+' npk='+(npk?'oui':'non'));
+
+  /* Détecter branche + côté depuis la voie du PK le plus proche */
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
-  var pkP=_parseVoie(pkVoie);
+  var voieN=_sideNum(pkVoie);     /* '1' ou '2' – pour affichage */
+  var pkP=_parseVoie(pkVoie);     /* {b, s} – pour filtrage précis */
 
+  /* Accès : branche + côté identiques (a.s==='' = générique, accepté)
+     Pas de fallback cross-voie — si pas de match, on garde tout le pool
+     RMS1→MS1, LGV1→LGV V1, RJ2→JU2, RV1→VN1 */
   var accPool=layerData.acces;
   if(pkP.b){
     var accFiltered=accPool.filter(function(f){
@@ -2375,6 +1599,7 @@ function _finishFindNearest(lat,lng,acc){
   }
   var naccs=_nearestN(lat,lng,accPool,3);
 
+  /* PAM : même règle ; LGV générique (a.s==='') accepté pour LGV1 et LGV2 */
   var pamPool=layerData.pam;
   if(pkP.b){
     var pamFiltered=pamPool.filter(function(f){
@@ -2392,12 +1617,11 @@ function _finishFindNearest(lat,lng,acc){
   }
   var html='<div style="padding:12px;display:flex;flex-direction:column;gap:10px">';
   var voieInfo=pkVoie?(pkP.b?(' · Voie <b>'+c(pkVoie)+'</b> → branche <b>'+pkP.b.toUpperCase()+'</b> côté <b>'+pkP.s+'</b>'):''):'' ;
-  html+='<p style="font-size:11px;color:'+(pkPrec.indexOf('PK métrique')===0?'#2e7d32':'#c62828')+';font-weight:700;margin:0">📍 GPS : ±'+Math.round(acc)+' m · '+(pkPrec||'PK indisponible')+voieInfo+'</p>';
-  if(npk&&npk.d!=null)html+='<p style="font-size:10.5px;color:#666;margin:-5px 0 0">Distance GPS ↔ PK : <b>'+_dStr(npk.d)+'</b></p>';
+  html+='<p style="font-size:11px;color:#888;margin:0">📍 GPS : ±'+Math.round(acc)+' m · PK : précision '+pkPrec+voieInfo+'</p>';
 
   if(npk){
     var p=npk.f.props,co=npk.f.geom.coordinates;
-    var rawLbl=(pkPrec.indexOf('1 m')>=0)?_pkMetricLabel(p):(p._pk_label!=null?p._pk_label:(p.pk!=null?p.pk:null));
+    var rawLbl=p._pk_label!=null?p._pk_label:(p.pk!=null?p.pk:null);
     var lbl;
     if(rawLbl!==null&&rawLbl!==undefined&&rawLbl!==''){
       var numV=parseFloat(rawLbl);
@@ -2409,8 +1633,7 @@ function _finishFindNearest(lat,lng,acc){
     html+='<div style="padding:10px;background:#fff3e0;border-radius:8px;border-left:4px solid #cc0000">';
     html+='<div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px">PK le plus proche</div>';
     html+='<div style="font-size:18px;font-weight:700;color:#cc0000">'+lbl+'</div>';
-    if(pkPrec.indexOf('PK métrique')!==0)html+='<div style="font-size:10.5px;color:#c62828;font-weight:700;margin-top:3px">⚠ PK métrique indisponible : valeur de secours. Précision GPS : ±'+Math.round(acc)+' m.</div>';
-    html+='<div style="font-size:12px;color:#555">Voie : <b>'+c(p._voie||p.voie||'—')+'</b>'+(pkP.b?' (branche '+pkP.b.toUpperCase()+', côté '+pkP.s+')':'')+'</div>';
+    html+='<div style="font-size:12px;color:#555">Voie : <b>'+c(p._voie||p.voie||'—')+'</b>'+(pkP.b?' (branche '+pkP.b.toUpperCase()+', côté '+pkP.s+'  — Accès+PAM filtrés)':'')+'</div>';
     html+='<div style="font-size:13px;font-weight:600;margin-top:4px">'+_dStr(npk.d)+'</div>';
     html+=zoomBtn(co,18,'→ Zoom sur ce PK');
     html+='</div>';
@@ -2455,9 +1678,9 @@ function _finishFindNearest(lat,lng,acc){
   openDetail('📍 Éléments LGV proches',html);
 }
 
-/* ══════════════════════════════════════════════════════════
-   RECHERCHE
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// RECHERCHE
+// ══════════════════════════════════════════════════════════
 function _initSearch(){
   var inp=document.getElementById('search-input');
   var res=document.getElementById('search-res');
@@ -2533,9 +1756,9 @@ function buildSearchIndex(){
       sub:[c(p.axe),c(p.pk_ef||p.pk_gc)].filter(Boolean).join(' • '),geom:f.geom,props:p});});
 }
 
-/* ══════════════════════════════════════════════════════════
-   TABLE ATTRIBUTAIRE
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// TABLE ATTRIBUTAIRE
+// ══════════════════════════════════════════════════════════
 var _tblOpen=false,_tblSortCol=null,_tblSortAsc=true;
 function toggleTable(){_tblOpen=!_tblOpen;document.getElementById('tbl-panel').classList.toggle('open',_tblOpen);if(_tblOpen)fillTable();}
 function refreshTableIfOpen(){if(_tblOpen)fillTable();}
@@ -2582,11 +1805,14 @@ function zoomToTblFeature(idx){
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════════════════════
 function showLightbox(img){document.getElementById('lb-img').src=img.src;document.getElementById('lightbox').classList.add('open');}
 
-/* ══════════════════════════════════════════════════════════
-   PIÈCES JOINTES
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// PIÈCES JOINTES
+// ══════════════════════════════════════════════════════════
 function getPJList(code){try{return JSON.parse(localStorage.getItem('pj_'+code)||'[]');}catch(e){return[];}}
 function savePJList(code,list){try{localStorage.setItem('pj_'+code,JSON.stringify(list));}catch(e){}}
 function _dpjItems(code){
@@ -2623,9 +1849,9 @@ function dpjAdd(code,input){
   });input.value='';
 }
 
-/* ══════════════════════════════════════════════════════════
-   PANNEAU DÉTAIL
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// PANNEAU DÉTAIL
+// ══════════════════════════════════════════════════════════
 function openDetail(title,bodyHtml){
   var dp=document.getElementById('detail-panel');
   document.getElementById('detail-title').innerHTML=title;
@@ -2693,7 +1919,7 @@ function openDetailOAPoly(p){
     dpSec('Localisation',[['PK EF',pk],['Commune',p.COMMUNE]])+
     dpSec('Caractéristiques',[['Type',p.TYPE||p.LIBELLE_FA],['Infrastructure portée',p.INFRA_PORTEE],
       ['Infrastructure franchie',p.INFRA_FRANCHIE],['Hauteur libre',p.HAUTEUR_LIBRE?(c(p.HAUTEUR_LIBRE)+' m'):''],
-      ['Longueur biaisée',p.LONGUEUR_BIAISE?(c(p.LONGUEUR_BIAISE)+' m'):'']])+
+      ['Longueur biaisée',p.LONGUEUR_BIAISE?(c(p.LONGUEUR_BIAISE)+' m'):'']  ])+
     dpSp(p)+dpPJWrap(code||featureKey('OA',p));
   openDetail('🏗 '+title,body);
 }
@@ -2714,6 +1940,8 @@ function openDetailOH(p){
     dpSp(p);
   openDetail('💧 '+(code?code+' – ':'')+lib,body);
 }
+// PAM : JAMAIS de dpPJWrap, dpSp, dpPhoto (contraintes permanentes)
+/* Boutons navigation Google Maps + Waze vers un point */
 function _navLinks(lat,lng){
   var la=parseFloat(lat),lo=parseFloat(lng);
   if(isNaN(la)||isNaN(lo))return'';
@@ -2734,17 +1962,21 @@ function openDetailPAM(p){
     (c(p.commentair)?dpSec('Commentaire',[['Note',p.commentair]]):'');
   openDetail('🌱 '+lib,body);
 }
+// Accès : pas de dpPJWrap, dpSp, dpPhoto
 function openDetailAcces(p){
   var name=c(p.NOM_ACCES||p.Name||'Accès');
   var lat=p._lat||p.LAT_DD, lng=p._lng||p.LONG_DD;
   openDetail('🚧 '+name,dpHero('Accès','🚧 '+name,'','#e65100')+_navLinks(lat,lng)+dpAllFields(p));
 }
+// FAB toggle (mobile)
 function toggleFabBar(){
   var bar=document.getElementById('fab-bar');
   var btn=document.getElementById('fab-toggle');
   bar.classList.toggle('expanded');
   btn.classList.toggle('active');
 }
+// Swipe mobile : uniquement sur le drag handle (évite conflit scroll content)
+// Haut→plein, bas depuis plein→compact, bas depuis compact→ferme
 (function(){
   var dp=document.getElementById('detail-panel');
   var handle=document.getElementById('dp-drag-handle');
@@ -2760,9 +1992,9 @@ function toggleFabBar(){
   handle.addEventListener('click',function(){dp.classList.toggle('dp-full');});
 })();
 
-/* ══════════════════════════════════════════════════════════
-   KML / KMZ
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// KML / KMZ
+// ══════════════════════════════════════════════════════════
 var _kmlLayers={},_kmlPending=null,_kmlIdx=0;
 function importKML(input){
   var file=input.files[0];if(!file)return;
@@ -2874,9 +2106,9 @@ function confirmKMLDirect(geojson,fname){
     _kmlLayers[lname]={sourceId:sid,layerIds:ids};}catch(e){}
 }
 
-/* ══════════════════════════════════════════════════════════
-   PWA + RÉSEAU
-   ══════════════════════════════════════════════════════════ */
+// ══════════════════════════════════════════════════════════
+// PWA + RÉSEAU
+// ══════════════════════════════════════════════════════════
 var _installPrompt=null;
 (function(){
   var standalone=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone;
@@ -2905,7 +2137,7 @@ function showNetToast(msg){
 function updateNetBadge(){
   var b=document.getElementById('ver-badge');if(b)b.textContent=APP_VER+(navigator.onLine?' 🟢':' 🔴');
   var ob=document.getElementById('offline-btn');
-  if(ob){var cached=localStorage.getItem('lgv_cached_v4');
+  if(ob){var cached=localStorage.getItem('lgv_cached_v3');
     ob.dataset.state=!navigator.onLine?(cached?'ready':'offline'):(cached?'ready':'');}
 }
 window.addEventListener('online',function(){updateNetBadge();showNetToast('🟢 En ligne');});
@@ -2914,12 +2146,14 @@ async function warmOfflineCache(){
   var btn=document.getElementById('offline-btn');
   if(!navigator.onLine){showNetToast('🔴 Hors ligne – impossible de mettre à jour le cache');return;}
   if(btn){btn.textContent='⏳';btn.disabled=true;btn.dataset.state='';}
+
+  /* 1 — GeoJSON + fichiers app */
   var files=[
     'data/rail.geojson','data/pk.geojson','data/pk_hecto.geojson',
     'data/oa.geojson','data/oh.geojson','data/pam.geojson','data/acces.geojson','data/oa_poly.geojson',
-    'data/pk_metric.pmtiles',
+    'data/bois.pmtiles','data/oa_poly.pmtiles',
     'data/n2.geojson','data/old.geojson','data/mc.geojson','data/eco.geojson',
-    'manifest.json','icons/icon-192.png','icons/icon-512.png'
+    'index_v3.html','manifest.json','icons/icon-192.png','icons/icon-512.png'
   ];
   var done=0;
   for(var i=0;i<files.length;i+=4){
@@ -2927,11 +2161,14 @@ async function warmOfflineCache(){
       return fetch(f).then(function(){done++;if(btn)btn.title='Données: '+done+'/'+files.length;}).catch(function(){done++;});
     }));
   }
+
+  /* 2 — Tuiles fond de carte Esri référence (zoom 5→11, corridor LGV SEA)
+     ~1000 tuiles, ~30 Mo dans le cache SW — 0 Mo dans l'APK */
   var BB={x0:-1.1,x1:1.1,y0:44.4,y1:47.6};
   function tX(lng,z){return Math.floor((lng+180)/360*Math.pow(2,z));}
   function tY(lat,z){var r=lat*Math.PI/180;var n=Math.pow(2,z);return Math.floor(n*(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2);}
   var tiles=[];
-  var TPL='https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+  var TPL='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}';
   for(var z=5;z<=11;z++){
     var xa=tX(BB.x0,z),xb=tX(BB.x1,z),ya=tY(BB.y1,z),yb=tY(BB.y0,z);
     for(var x=xa;x<=xb;x++)for(var y=ya;y<=yb;y++)
@@ -2944,28 +2181,16 @@ async function warmOfflineCache(){
       return fetch(u).then(function(){td++;if(btn)btn.title='🗺 Tuiles: '+td+'/'+tiles.length;}).catch(function(){td++;});
     }));
   }
-  try{localStorage.setItem('lgv_cached_v4','1');}catch(e){}
-  if(btn){btn.textContent='✅';btn.title='Carte offline ✓';}
-  showNetToast('✅ Carte disponible hors-ligne');
+
+  try{localStorage.setItem('lgv_cached_v3','1');}catch(e){}
+  if(btn){btn.textContent='✅';btn.title='Carte offline ✓ (données + tuiles z5→11)';}
+  showNetToast('✅ Carte disponible hors-ligne (données + fond z5–11)');
   setTimeout(function(){if(btn){btn.textContent='📶';btn.disabled=false;}updateNetBadge();},3000);
 }
 window.warmOfflineCache=warmOfflineCache;
-
-/* Alias globaux attendus par les onclick inline */
-window.toggleLayersPanel=window.toggleLayersPanel||function(){document.getElementById('layers-panel').classList.toggle('open');};
-window.closeDetail=closeDetail;
-window.toggleTable=toggleTable;
-window.closeTable=closeTable;
-window.fillTable=fillTable;
-window.filterTable=filterTable;
-window.sortTable=sortTable;
-window.zoomToTblFeature=zoomToTblFeature;
-window.importKML=importKML;
-window.cancelKML=cancelKML;
-window.confirmKML=confirmKML;
-window.removeKMLLayer=removeKMLLayer;
-window.toggleFabBar=toggleFabBar;
-window.switchBM=window.switchBM;
+/* v3.66 : aucun Service Worker n'est utilisé pour le runtime GPS.
+   Le reset de version ci-dessus désenregistre celui des anciennes versions. */
+window.addEventListener('load',function(){updateNetBadge();});
 </script>
 </body>
 </html>
