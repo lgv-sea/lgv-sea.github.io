@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Carte LGV SEA v3</title>
+<title>Carte LGV SEA v3.73</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preload" as="fetch" href="data/rail.geojson" crossorigin="anonymous">
 <link rel="preload" as="fetch" href="data/pk.geojson" crossorigin="anonymous">
@@ -18,10 +18,10 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow:hidden;max-width:100vw}
+html,body{overflow:hidden;max-width:100vw;width:100%;height:100%;height:100dvh}
 body{font-family:"Segoe UI",Arial,sans-serif;background:#1a1a2e;overscroll-behavior:none}
 button,a,[onclick]{touch-action:manipulation}
-#map{position:absolute;top:0;bottom:0;left:0;right:0;z-index:1}
+#map{position:fixed;inset:0;width:100%;height:100%;height:100dvh;z-index:1}
 #loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:white;padding:24px 36px;border-radius:12px;
   box-shadow:0 4px 24px rgba(0,0,0,.35);z-index:9999;text-align:center;
@@ -30,7 +30,6 @@ button,a,[onclick]{touch-action:manipulation}
   border:4px solid #eee;border-top:4px solid #cc0000;border-radius:50%;
   animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* MapLibre overrides */
 .maplibregl-canvas-container{cursor:default}
 .maplibregl-map{font-family:"Segoe UI",Arial,sans-serif}
 .maplibregl-ctrl-attrib{font-size:10px}
@@ -42,12 +41,10 @@ button,a,[onclick]{touch-action:manipulation}
 .mlpop td:first-child{font-weight:600;color:#666;white-space:nowrap;width:80px}
 .hover-tip{background:rgba(26,26,46,.88);color:white;font-size:11.5px;font-weight:600;
   padding:3px 8px;border-radius:4px;pointer-events:none;white-space:nowrap}
-/* Popup photo */
 .mlpop img{width:100%;border-radius:5px;margin-top:8px;cursor:zoom-in;transition:transform .2s}
 .mlpop img:hover{transform:scale(1.03)}
 .btn-sp{display:block;margin-top:7px;text-align:center;background:#0078d4;color:white!important;
   padding:5px 10px;border-radius:5px;text-decoration:none;font-size:11.5px;font-weight:600}
-/* Panneau couches */
 #layers-panel{position:absolute;top:60px;left:0;z-index:800;background:white;
   border-radius:0 8px 8px 0;box-shadow:2px 2px 12px rgba(0,0,0,.25);
   transition:transform .25s;transform:translateX(-100%);width:230px;will-change:transform}
@@ -63,12 +60,9 @@ button,a,[onclick]{touch-action:manipulation}
 .bm-btn{flex:1;min-width:60px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;
   padding:5px 4px;font-size:11px;cursor:pointer;text-align:center;transition:background .15s}
 .bm-btn.active{background:#1a1a2e;color:white;border-color:#1a1a2e}
-/* Bouton ouvrir panneau */
 #layers-btn{position:absolute;top:60px;left:0;z-index:799;background:#1a1a2e;color:white;
   border:none;border-radius:0 6px 6px 0;padding:8px 10px;cursor:pointer;font-size:18px;
   box-shadow:2px 2px 8px rgba(0,0,0,.3)}
-/* Bouton localiser – dans la FAB bar */
-/* Barre recherche */
 #search-wrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
   width:320px;max-width:90vw}
 #search-input{width:100%;padding:8px 14px;border-radius:20px;border:none;
@@ -79,7 +73,6 @@ button,a,[onclick]{touch-action:manipulation}
   display:flex;gap:10px;align-items:center}
 .sr-item:hover{background:#f5f5f5}
 .sr-badge{font-size:10px;background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:10px;white-space:nowrap}
-/* Table */
 #tbl-panel{position:absolute;bottom:0;left:0;right:0;height:0;background:white;z-index:900;
   transition:height .3s;box-shadow:0 -4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column}
 #tbl-panel.open{height:40vh;min-height:200px}
@@ -96,7 +89,6 @@ button,a,[onclick]{touch-action:manipulation}
 #tbl-scroll tr:hover td{background:#f9fbe7}
 .tbl-zoom{cursor:pointer;background:#e3f2fd;border:none;border-radius:3px;padding:2px 6px;
   font-size:11px;color:#1565c0}
-/* FAB */
 #fab-bar{position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+10px));right:10px;
   z-index:800;display:flex;flex-direction:column;gap:6px}
 .fab{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
@@ -104,20 +96,29 @@ button,a,[onclick]{touch-action:manipulation}
   transition:transform .1s;position:relative}
 .fab:hover{transform:scale(1.1)}
 .fab-white{background:white}
-#offline-btn[data-state="ready"]::after{content:"✓";position:absolute;bottom:-2px;right:-2px;
-  background:#2e7d32;color:white;font-size:8px;width:12px;height:12px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-weight:700}
-/* Toast */
+.fab.gps-active::after{content:"";position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;
+  border-radius:50%;background:#2e7d32;border:2px solid white;
+  animation:gpsPulse 1.6s ease-in-out infinite}
+.fab.gps-searching::after{content:"";position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;
+  border-radius:50%;background:#fb8c00;border:2px solid white;
+  animation:gpsPulse 1.2s ease-in-out infinite}
+@keyframes gpsPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+#gps-recenter-banner{position:absolute;bottom:max(90px,calc(env(safe-area-inset-bottom,0px)+70px));
+  left:50%;transform:translateX(-50%);z-index:803;background:#2e7d32;color:white;border:none;
+  border-radius:20px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;
+  box-shadow:0 3px 12px rgba(0,0,0,.35);display:none;align-items:center;gap:6px;
+  white-space:nowrap;animation:gpsFadeIn .25s}
+#gps-recenter-banner:hover{background:#1b5e20}
+@keyframes gpsFadeIn{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+#offline-btn{display:none!important}
 #net-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:10000;
   background:rgba(26,26,46,.9);color:white;padding:7px 18px;border-radius:20px;
   font-size:12.5px;display:none;pointer-events:none;white-space:nowrap;transition:opacity .3s}
-/* Lightbox */
 #lightbox{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,.92);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out;flex-direction:column;gap:10px}
 #lightbox.open{display:flex}
 #lightbox img{max-width:98vw;max-height:92vh;border-radius:4px;object-fit:contain;image-rendering:auto}
 #lb-hint{color:rgba(255,255,255,.55);font-size:11px;pointer-events:none}
-/* Detail panel */
 #dp-backdrop{display:none;position:fixed;inset:0;z-index:899;background:transparent;pointer-events:none}
 #dp-backdrop.open{display:block;pointer-events:auto}
 #detail-panel{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:92vw;background:white;
@@ -137,10 +138,8 @@ button,a,[onclick]{touch-action:manipulation}
 .dp-k{color:#aaa;font-size:10.5px;min-width:90px;width:90px;flex-shrink:0;padding-right:6px}
 .dp-v{color:#1a1a2e;font-size:11.5px;flex:1;word-break:break-word}
 .dp-photo-w{padding:8px 14px;border-bottom:1px solid #f0f0f0}
-.dp-photo-w img{width:100%;border-radius:5px;cursor:zoom-in;box-shadow:0 2px 8px rgba(0,0,0,.18);
-  image-rendering:auto;-webkit-image-rendering:-webkit-optimize-contrast;transition:transform .2s}
+.dp-photo-w img{width:100%;border-radius:5px;cursor:zoom-in;box-shadow:0 2px 8px rgba(0,0,0,.18);transition:transform .2s}
 .dp-photo-w img:hover{transform:scale(1.01)}
-.dp-photo-w .ph-hint{font-size:10px;color:#aaa;text-align:center;margin-top:3px}
 .dp-actions{padding:7px 14px;border-bottom:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:6px}
 .dp-sp{display:inline-flex;align-items:center;gap:5px;background:#e3f2fd;color:#1565c0;
   border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:600;text-decoration:none;border:none;cursor:pointer}
@@ -156,16 +155,13 @@ button,a,[onclick]{touch-action:manipulation}
   border:1px solid #c5e1a5;border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#33691e;cursor:pointer}
 .dpj-empty{color:#ccc;font-size:11.5px;padding:2px 0}
 .pj-del{background:#ffebee;border:none;border-radius:3px;padding:2px 7px;cursor:pointer;color:#c62828;font-size:11px}
-/* KML modal */
 #kml-choice-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(0,0,0,.55);z-index:9500;align-items:center;justify-content:center}
 #kml-choice-modal.open{display:flex}
 .kml-del{background:#ffebee;border:none;border-radius:3px;padding:2px 7px;cursor:pointer;color:#c62828;font-size:11px;margin-left:auto;flex-shrink:0}
-/* Load status */
 #load-status{display:none;position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+20px));left:50%;transform:translateX(-50%);
   z-index:802;background:rgba(26,26,46,.9);color:white;padding:5px 16px;border-radius:16px;
   font-size:11.5px;white-space:nowrap;pointer-events:none}
-/* Légende */
 .lgv-legend-wrap{position:relative;display:flex;flex-direction:column;pointer-events:auto}
 .lgv-legend-hdr{display:none;align-items:center;gap:6px;background:white;padding:6px 10px;
   border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;color:#1a1a2e;
@@ -180,18 +176,14 @@ button,a,[onclick]{touch-action:manipulation}
 .li{display:flex;align-items:center;gap:7px;margin:3px 0;line-height:1.3}
 .lc{width:13px;height:13px;border-radius:3px;flex-shrink:0;border:1px solid rgba(0,0,0,.15)}
 .ll{width:20px;height:3px;flex-shrink:0;border-radius:2px}
-/* Drag handle detail panel */
 #dp-drag-handle{display:none;height:34px;background:#1a1a2e;flex-shrink:0;
   align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px;
   touch-action:none;user-select:none;-webkit-user-select:none}
 #dp-drag-handle::before{content:'';width:48px;height:5px;border-radius:3px;background:rgba(255,255,255,.4)}
 #dp-drag-handle::after{content:'▾';color:rgba(255,255,255,.5);font-size:12px;line-height:1}
 #detail-panel.dp-full #dp-drag-handle::after{content:'▴'}
-/* FAB secondary (masqués sur mobile) */
 #fab-toggle{display:none}
-/* Mobile */
 @media(max-width:768px){
-  /* Panneau détail : compact par défaut, plein si dp-full */
   #detail-panel{position:fixed;width:100%;max-width:100%;top:auto;height:44vh;
     transform:translateY(100%);box-shadow:0 -4px 20px rgba(0,0,0,.2);
     transition:transform .3s cubic-bezier(.4,0,.2,1), height .3s cubic-bezier(.4,0,.2,1)}
@@ -200,10 +192,8 @@ button,a,[onclick]{touch-action:manipulation}
   #detail-body{padding-bottom:env(safe-area-inset-bottom,0px)}
   #dp-drag-handle{display:flex}
   #dp-backdrop.open{background:rgba(0,0,0,.25)}
-  /* Prevent iOS zoom on input focus */
   #search-input{font-size:16px;padding:9px 12px}
   #tbl-header input{font-size:16px}
-  /* Safe area pour notch / Dynamic Island / navigation Android */
   #search-wrap{left:44px;width:calc(100vw - 110px);transform:none;
     top:max(8px,calc(env(safe-area-inset-top,0px) + 4px))}
   #layers-btn{top:max(10px,calc(env(safe-area-inset-top,0px) + 6px));
@@ -222,24 +212,51 @@ button,a,[onclick]{touch-action:manipulation}
   #tbl-close{font-size:22px;padding:0 4px}
   #tbl-scroll table{font-size:12px}
   #tbl-scroll th,#tbl-scroll td{padding:6px 8px}
-  /* FAB secondaires masqués – affichés via toggle */
   .fab-secondary{display:none}
   #fab-toggle{display:flex}
   #fab-bar.expanded .fab-secondary{display:flex}
   #fab-toggle.active{background:#1a1a2e;color:white}
-  /* Texte panneau détail */
   .dp-k{font-size:11.5px;min-width:80px;width:80px}
   .dp-v{font-size:12.5px}
   .dp-main{font-size:14px}
-  /* Légende : cachée par défaut, s'étend VERS LE HAUT (ctrl en bas de l'écran) */
   .lgv-legend-hdr{display:flex}
   .lgv-legend{display:none;order:-1;margin-bottom:4px;max-height:50vh;overflow-y:auto}
   .lgv-legend-wrap.open .lgv-legend{display:block}
+  #gps-recenter-banner{bottom:max(88px,calc(env(safe-area-inset-bottom,0px)+62px))}
 }
 @media(max-width:420px){
   #search-wrap{left:40px;width:calc(100vw - 100px)}
   .fab{width:44px;height:44px;font-size:18px}
 }
+
+/* v3.73 UX mobile Firefox / Samsung A56 */
+:root{--app-vh:100dvh;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+html,body,#map{height:var(--app-vh)!important;min-height:var(--app-vh)!important}
+body.browser-mode #search-wrap{top:max(10px,calc(var(--safe-top) + 6px))}
+body.browser-mode #layers-btn{top:max(12px,calc(var(--safe-top) + 8px))}
+body.browser-mode #fab-bar{bottom:max(22px,calc(var(--safe-bottom) + 12px))}
+body.standalone-mode #search-wrap{top:max(8px,calc(var(--safe-top) + 4px))}
+body.standalone-mode #fab-bar{bottom:max(18px,calc(var(--safe-bottom) + 8px))}
+#gps-quality{position:absolute;left:50%;bottom:max(16px,calc(var(--safe-bottom) + 8px));transform:translateX(-50%);z-index:801;display:none;background:rgba(255,255,255,.94);color:#1a1a2e;border-radius:15px;padding:4px 10px;font-size:10.5px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none;white-space:nowrap}
+@media(max-width:768px){
+  #search-wrap{width:calc(100vw - 112px);left:48px;right:64px;transform:none;max-width:none}
+  #search-input{height:44px;border-radius:22px;padding-left:14px;padding-right:12px}
+  #layers-btn{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  #fab-bar{right:10px}.fab{width:50px;height:50px;min-width:50px;min-height:50px}
+  #detail-panel{height:min(48vh,430px)}#detail-panel.dp-full{height:min(86vh,760px)}
+  #gps-recenter-banner{max-width:calc(100vw - 100px);overflow:hidden;text-overflow:ellipsis}
+  .maplibregl-ctrl-bottom-left{bottom:max(2px,var(--safe-bottom))}
+  .maplibregl-ctrl-bottom-right{bottom:max(2px,var(--safe-bottom))}
+}
+@media(max-width:420px){#search-wrap{left:46px;right:60px;width:auto}.fab{width:48px;height:48px;min-width:48px;min-height:48px}}
+@media(orientation:landscape) and (max-height:500px){
+  #search-wrap{top:5px;width:min(420px,55vw);left:54px;transform:none}
+  #layers-btn{top:5px}#layers-panel{top:54px;max-height:calc(100dvh - 60px)}
+  #fab-bar{right:8px;bottom:8px;gap:4px}.fab{width:42px;height:42px;min-width:42px;min-height:42px}
+  #detail-panel{top:0;right:0;bottom:0;left:auto;width:min(380px,48vw);height:100dvh;transform:translateX(100%)}
+  #detail-panel.open{transform:translateX(0)}#dp-drag-handle{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -273,10 +290,12 @@ button,a,[onclick]{touch-action:manipulation}
   padding:2px 6px;border-radius:8px;pointer-events:none;letter-spacing:.3px"></div>
 <div id="net-toast"></div>
 <div id="load-status"></div>
+<div id="gps-quality"></div>
+<button id="gps-recenter-banner" onclick="locateMe()">📍 Recentrer sur ma position</button>
 <div id="fab-bar">
   <button id="install-btn" class="fab fab-white" style="display:none" title="Installer l'application" onclick="installApp()">📲</button>
-  <button id="offline-btn" class="fab fab-white fab-secondary" title="Mettre en cache hors-ligne" onclick="warmOfflineCache()">📶</button>
-  <button id="locate-btn" class="fab fab-white" title="Activer le suivi GPS en temps réel" onclick="locateMe()">📍</button>
+  <button id="offline-btn" class="fab fab-white fab-secondary" title="Nettoyer les anciens caches" onclick="clearOldAppCaches()">📶</button>
+  <button id="gps-fab" class="fab fab-white" title="Me localiser / suivre en temps réel" onclick="locateMe()">📍</button>
   <button class="fab fab-white" title="PK / Accès / PAM le plus proche" onclick="findNearest()" style="background:#cc0000;color:white;font-size:14px;font-weight:700">PK?</button>
   <button class="fab fab-white" title="Vue d'ensemble LGV SEA" onclick="resetView()">🏠</button>
   <button class="fab fab-white fab-secondary" title="Table attributaire" onclick="toggleTable()">📋</button>
@@ -311,59 +330,44 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* ── Version applicative sans boucle de rechargement ── */
+/* v3.73 : UX Samsung A56 + PK fiable + GPS anti-cache */
 (function(){
-  var V='v3.74';
+  var V='v3.73-samsung-pk-reliable';
+  try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
   try{
-    var previous=localStorage.getItem('lgv_app_ver');
-    localStorage.setItem('lgv_app_ver',V);
-    /* Une nouvelle version ne doit jamais forcer un reload automatique.
-       Le service worker actualise ses ressources sans interrompre la carte. */
-    if(previous && previous!==V) sessionStorage.setItem('lgv_update_notice','1');
+    if('serviceWorker' in navigator){
+      var already=false; try{already=sessionStorage.getItem('lgv_sw_cleanup_done')==='1';}catch(e){}
+      if(!already){
+        try{sessionStorage.setItem('lgv_sw_cleanup_done','1');}catch(e){}
+        Promise.all([
+          navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}),
+          ('caches' in window)?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}):Promise.resolve()
+        ]).then(function(){
+          try{localStorage.removeItem('lgv_map_pos');localStorage.removeItem('lgv_cached_v3');}catch(e){}
+        });
+      }
+    }
   }catch(e){}
 })();
 </script>
 <script>
-// ═══════════════════════════════════════════════════════════
-// CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
-// ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.74';
+var APP_VER = 'v3.73-samsung-pk-reliable';
 
-// ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
   .then(function(r){if(!r.ok)throw new Error('pk HTTP '+r.status);return r.json();})
   .then(function(d){_pkPrefetch=d;if(_pkMapReady)_setupPKLayers(d);})
   .catch(function(e){console.warn('PK prefetch:',e);_loading.pk=false;});
 
-// ── PMTiles protocol ──
-var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=365', document.baseURI).href;
+var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=373', document.baseURI).href;
 var _pmProtocol = new pmtiles.Protocol();
 var _pkMetricArchive = new pmtiles.PMTiles(_pkMetricBase);
 _pmProtocol.add(_pkMetricArchive);
 maplibregl.addProtocol('pmtiles', _pmProtocol.tile.bind(_pmProtocol));
 
-// ── Helpers ──
 function c(v){return(v===null||v===undefined||String(v).match(/^(nan|NaN|None|null|undefined)$/i))?"":String(v)}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-function row(k,v){v=c(v);return v?"<tr><td>"+k+"</td><td>"+v+"</td></tr>":""}
 
-// ── PK layer helpers (module-level, used in _loadAllData) ──
-function _addPkCircle(id,src,minz,maxz,r,color){
-  map.addLayer({id:id,type:'circle',source:src,minzoom:minz,maxzoom:maxz||22,
-    paint:{'circle-radius':r,'circle-color':color,'circle-stroke-width':2,
-      'circle-stroke-color':'white','circle-opacity':0.95}});
-}
-function _addPkLabel(id,src,minz,maxz,size,offset){
-  map.addLayer({id:id,type:'symbol',source:src,minzoom:minz,maxzoom:maxz||22,
-    layout:{'text-field':['get','_pk_label'],'text-size':size,
-      'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
-      'text-offset':[0,offset],'text-anchor':'bottom',
-      'text-allow-overlap':false,'text-ignore-placement':false},
-    paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
-}
-
-// ── Création source PK unique + couches filtrées (MapLibre GL v4 – source inline garantie) ──
 function _setupPKLayers(d){
   var all=d.features||[];
   layerData.pk=all.map(function(f){return{props:f.properties,geom:f.geometry};});
@@ -374,7 +378,6 @@ function _setupPKLayers(d){
     return m?parseInt(m[1],10)*1000+parseInt(m[2],10):-1;
   }
 
-  // Calcule _pk_class pour chaque feature (filtre par couche → source unique)
   var features=all.map(function(f){
     var m=pkMeters(f), cls='';
     if(m>=0&&m%50000===0)cls='50';
@@ -383,12 +386,7 @@ function _setupPKLayers(d){
     return{type:'Feature',geometry:f.geometry,properties:Object.assign({},f.properties,{_pk_class:cls})};
   });
   var fc={type:'FeatureCollection',features:features};
-  var n50=features.filter(function(f){return f.properties._pk_class==='50';}).length;
-  var n10=features.filter(function(f){return f.properties._pk_class==='10';}).length;
-  var n1 =features.filter(function(f){return f.properties._pk_class==='1';}).length;
-  console.log('PK v3.30: total='+all.length+' | 50km='+n50+' | 10km='+n10+' | 1km='+n1);
 
-  // Supprimer couches et sources précédentes
   ['pk50-lbl','pk50-c','pk10-lbl','pk10-c','pk1-lbl','pk1-c'].forEach(function(id){
     try{if(map.getLayer(id))map.removeLayer(id);}catch(e){}
   });
@@ -398,7 +396,6 @@ function _setupPKLayers(d){
 
   map.addSource('pk_all',{type:'geojson',data:fc});
 
-  // pk50 : z7→10, cercles rouges
   map.addLayer({id:'pk50-c',type:'circle',source:'pk_all',minzoom:7,maxzoom:10,
     filter:['==','_pk_class','50'],
     paint:{'circle-radius':9,'circle-color':'#cc0000','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -409,7 +406,6 @@ function _setupPKLayers(d){
       'text-offset':[0,-1.6],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 
-  // pk10 : z10→13, cercles gris foncé
   map.addLayer({id:'pk10-c',type:'circle',source:'pk_all',minzoom:10,maxzoom:13,
     filter:['==','_pk_class','10'],
     paint:{'circle-radius':6,'circle-color':'#555','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -420,7 +416,6 @@ function _setupPKLayers(d){
       'text-offset':[0,-1.4],'text-anchor':'bottom','text-allow-overlap':false,'text-ignore-placement':false},
     paint:{'text-color':'#111','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.5}});
 
-  // pk1 : z13→15, cercles noirs fins
   map.addLayer({id:'pk1-c',type:'circle',source:'pk_all',minzoom:13,maxzoom:15,
     filter:['==','_pk_class','1'],
     paint:{'circle-radius':4,'circle-color':'#333','circle-stroke-width':2,'circle-stroke-color':'white','circle-opacity':0.95}});
@@ -437,7 +432,6 @@ function _setupPKLayers(d){
   addPKtoIndex({type:'FeatureCollection',features:features});
 }
 
-// ── Geometry helpers ──
 function geomBounds(geom){
   var mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinity;
   function sc(a){if(typeof a[0]==="number"){if(a[0]<mnx)mnx=a[0];if(a[1]<mny)mny=a[1];if(a[0]>mxx)mxx=a[0];if(a[1]>mxy)mxy=a[1];}else a.forEach(sc);}
@@ -446,23 +440,22 @@ function geomBounds(geom){
 }
 function emptyFC(){return{type:"FeatureCollection",features:[]};}
 
-// ── MapLibre map ──
 var map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      'bm-sat': {type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri World Imagery',maxzoom:19},
-      'bm-sat-ref': {type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png','https://b.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png','https://c.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png'],tileSize:512,attribution:'© CARTO',maxzoom:20},
-      'bm-osm': {type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap',maxzoom:19},
-      'bm-ign': {type:'raster',tiles:['https://wxs.ign.fr/decouverte/geoportail/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],tileSize:256,attribution:'© IGN Géoportail',maxzoom:18}
+      'bm-sat': {type:'raster',tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri, Maxar, Earthstar Geographics',maxzoom:19,fadeDuration:0},
+      'bm-labels': {type:'raster',tiles:['https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}'],tileSize:256,attribution:'© Google',maxzoom:20,fadeDuration:0},
+      'bm-osm': {type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap',maxzoom:19,fadeDuration:0},
+      'bm-ign': {type:'raster',tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],tileSize:256,attribution:'© IGN – Géoplateforme',maxzoom:19,fadeDuration:0}
     },
     layers: [
       {id:'bm-sat',    type:'raster',source:'bm-sat',    layout:{visibility:'visible'}},
-      {id:'bm-sat-ref',type:'raster',source:'bm-sat-ref',layout:{visibility:'visible'}},
-      {id:'bm-osm',   type:'raster',source:'bm-osm',    layout:{visibility:'none'}},
-      {id:'bm-ign',   type:'raster',source:'bm-ign',    layout:{visibility:'none'}}
+      {id:'bm-labels', type:'raster',source:'bm-labels', layout:{visibility:'visible'}},
+      {id:'bm-osm',    type:'raster',source:'bm-osm',    layout:{visibility:'none'}},
+      {id:'bm-ign',    type:'raster',source:'bm-ign',    layout:{visibility:'none'}}
     ]
   },
   center: [0.15, 46.15],
@@ -470,7 +463,6 @@ var map = new maplibregl.Map({
   maxZoom: 21,
   attributionControl: {compact:true}
 });
-// Navigation (+/-) en bas à gauche pour ne pas gêner la FAB ni la recherche
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-left');
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}), 'bottom-left');
 
@@ -478,26 +470,19 @@ var HOME_CENTER=[0.15,46.15], HOME_ZOOM=8;
 function resetView(){map.flyTo({center:HOME_CENTER,zoom:HOME_ZOOM});}
 window.resetView=resetView;
 window.toggleLayersPanel=function(){document.getElementById('layers-panel').classList.toggle('open');};
-// Ferme le panneau couches si on touche la carte (mobile)
 document.getElementById('map').addEventListener('touchstart',function(){
   document.getElementById('layers-panel').classList.remove('open');
 },{passive:true});
 
-// ── Données chargées ──
 var layerData={oa:[],oh:[],acces:[],pam:[],pk:[]};
 var _oaByCode={};
 var _loading={oa:true,oh:true,pam:true,acces:true,pk:true};
 var _pkHData=null,_pkHLoaded=false;
 var searchIndex=[];
-// Position sauvegardée au moment du chargement (avant tout moveend)
-var _savedPosAtLoad=null;
-try{_savedPosAtLoad=JSON.parse(localStorage.getItem('lgv_map_pos')||'null');}catch(e){}
 
-// ── Visibilité couches (état utilisateur) ──
 var _vis={rail:true,pk:true,pkhecto:true,pkmetric:true,oa:true,oh:true,pam:true,acces:true,
            oapoly:true,bois:true,n2:true,old:false,mc:true,eco:true};
 
-// ── IDs couches par clé ──
 var LAYER_IDS = {
   rail:    ['rail-line'],
   pk:      ['pk50-c','pk50-lbl','pk10-c','pk10-lbl','pk1-c','pk1-lbl'],
@@ -522,7 +507,6 @@ function setVis(key, on){
   });
 }
 
-// ── Focus géométrie (recherche) ──
 var _focusActive=false;
 function clearFocusGeom(){
   if(!_focusActive)return;
@@ -551,12 +535,10 @@ function focusGeom(geom,opts){
   setTimeout(clearFocusGeom,opts.ttl||10000);
 }
 
-// ── Popup survol partagé ──
 var _hoverPopup=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:'hover-tip',offset:8});
 function showHover(lngLat,html){_hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map);}
 function hideHover(){_hoverPopup.remove();}
 
-// ── Data loading ──
 function loadJSON(name){
   return fetch('data/'+name+'.geojson?_v='+APP_VER)
     .then(function(r){if(!r.ok)throw new Error(name+' HTTP '+r.status);return r.json();})
@@ -586,11 +568,8 @@ if(location.protocol==='file:'){
     if(_pkPrefetch)_setupPKLayers(_pkPrefetch);
     _loadAllData();
     _initLayersPanel();
-    /* Applique l'etat de visibilite par defaut de chaque couche (_vis) */
     Object.keys(LAYER_IDS).forEach(function(k){setVis(k,_vis[k]);});
     _initSearch();
-    _restoreMapPos();
-    /* Afficher état de chargement immédiatement */
     _updateLoadStatus();
     setTimeout(function(){
       if(!map.getLayer('pkm1-symbol'))showNetToast('⚠ PK métriques absents – recharger (F5)');
@@ -598,19 +577,13 @@ if(location.protocol==='file:'){
   });
 }
 
-// ══════════════════════════════════════════════════════════
-// COUCHES VECTORIELLES (PMTiles + GeoJSON)
-// ══════════════════════════════════════════════════════════
 function _initVectorLayers(){
-  // ── Boisements source (GeoJSON) ──
   map.addSource('bois',{type:'geojson',data:emptyFC()});
-  // ── GeoJSON sources (polygones légers chargés dans _loadAllData) ──
   map.addSource('n2',{type:'geojson',data:emptyFC()});
   map.addSource('old',{type:'geojson',data:emptyFC()});
   map.addSource('mc',{type:'geojson',data:emptyFC()});
   map.addSource('eco',{type:'geojson',data:emptyFC()});
 
-  // ── Boisements ──
   map.addLayer({id:'bois-fill',type:'fill',source:'bois',minzoom:8,
     paint:{'fill-color':['match',['upcase',['coalesce',['get','TYPE_OBJET'],'']],
       'RIPISYLVE','#1b5e20','BOIS','#388e3c','HAIE','#558b2f','#33691e'],
@@ -618,7 +591,6 @@ function _initVectorLayers(){
   map.addLayer({id:'bois-outline',type:'line',source:'bois',minzoom:8,
     paint:{'line-color':'#FFEB3B','line-width':1.5,'line-dasharray':[4,2]}});
 
-  // ── Natura 2000 ──
   map.addLayer({id:'n2-fill',type:'fill',source:'n2',minzoom:6,
     paint:{'fill-color':['match',['get','type_complet'],'ZPS','#ff9800','ZSC','#2e7d32','#4caf50'],
       'fill-opacity':0.28}});
@@ -626,20 +598,17 @@ function _initVectorLayers(){
     paint:{'line-color':['match',['get','type_complet'],'ZPS','#e65100','ZSC','#1b5e20','#388e3c'],
       'line-width':1.5,'line-dasharray':[3,2]}});
 
-  // ── Zones OLD ──
   map.addLayer({id:'old-fill',type:'fill',source:'old',minzoom:5,
     paint:{
       'fill-color':['interpolate',['linear'],['zoom'],5,'#c8d8ff',10,'#6b96ff',13,'#1435d4'],
       'fill-opacity':['interpolate',['linear'],['zoom'],5,0.28,9,0.32,12,0.38,13,0.28,15,0.15,17,0.07,19,0.02]}});
 
-  // ── Mesures compensatoires ──
   map.addLayer({id:'mc-fill',type:'fill',source:'mc',minzoom:8,
     paint:{'fill-color':'#ab47bc',
       'fill-opacity':['interpolate',['linear'],['zoom'],8,0.20,16,0.10]}});
   map.addLayer({id:'mc-outline',type:'line',source:'mc',minzoom:8,
     paint:{'line-color':'#7b1fa2','line-width':1.8}});
 
-  // ── Écopâturage ──
   map.addLayer({id:'eco-fill',type:'fill',source:'eco',minzoom:8,
     paint:{'fill-color':['case',['==',['upcase',['coalesce',['get','Occupation'],'']],
       'ACTIVE'],'#66bb6a','#b0bec5'],
@@ -650,7 +619,6 @@ function _initVectorLayers(){
       'line-width':['interpolate',['linear'],['zoom'],8,1.5,14,2.2,18,1.8],
       'line-opacity':['interpolate',['linear'],['zoom'],8,0.8,16,0.9]}});
 
-  // ── Hover + click sur couches PMTiles ──
   ['bois-fill','n2-fill','old-fill','mc-fill','eco-fill'].forEach(function(lid){
     map.on('mouseenter',lid,function(e){
       map.getCanvas().style.cursor='pointer';
@@ -675,16 +643,12 @@ function _initVectorLayers(){
     });
   });
 
-  // ── GeoJSON sources (données ponctuelles/lignes) ──
-  // rail/oa_poly/oh/oa/pk_hecto : setData fonctionne car pas de rendu initial (layers ajoutés après)
-  // pk_all/pam/acces : source créée lazily avec données inline (_setupPKLayers / _loadAllData)
   map.addSource('rail',{type:'geojson',data:emptyFC()});
   map.addSource('oa_poly',{type:'geojson',data:emptyFC()});
   map.addSource('oh',{type:'geojson',data:emptyFC()});
   map.addSource('oa',{type:'geojson',data:emptyFC(),cluster:true,clusterMaxZoom:14,clusterRadius:55});
   map.addSource('pk_hecto',{type:'geojson',data:emptyFC()});
 
-  // ── OA Emprises (polygones avec labels permanents) ──
   map.addLayer({id:'oapoly-fill',type:'fill',source:'oa_poly',minzoom:13,
     paint:{'fill-color':'#00bcd4','fill-opacity':0.30}});
   map.addLayer({id:'oapoly-outline',type:'line',source:'oa_poly',minzoom:13,
@@ -694,14 +658,13 @@ function _initVectorLayers(){
       'text-size':10,'text-font':['Open Sans Regular','Arial Unicode MS Regular'],
       'text-allow-overlap':true,'text-ignore-placement':true},
     paint:{'text-color':'white','text-halo-color':'#008fa3','text-halo-width':1.2}});
-  map.on('mouseenter','oapoly-fill',function(e){map.getCanvas().style.cursor='pointer';});
+  map.on('mouseenter','oapoly-fill',function(){map.getCanvas().style.cursor='pointer';});
   map.on('mouseleave','oapoly-fill',function(){map.getCanvas().style.cursor='';});
   map.on('click','oapoly-fill',function(e){
     if(!e.features.length)return;
     openDetailOAPoly(e.features[0].properties);
   });
 
-  // ── Tracé Rail ──
   map.addLayer({id:'rail-line',type:'line',source:'rail',
     paint:{'line-color':'#cc0000','line-width':4.5,'line-opacity':0.95}});
   map.on('click','rail-line',function(e){
@@ -709,7 +672,6 @@ function _initVectorLayers(){
     openDetailGeneric('Rail','🚄 LGV SEA',e.features[0].properties,'#cc0000');
   });
 
-  // ── OH Hydrauliques ──
   map.addLayer({id:'oh-line',type:'line',source:'oh',minzoom:14,
     paint:{'line-color':'#ef6c00','line-width':7,'line-opacity':0.9}});
   map.addLayer({id:'oh-lbl',type:'symbol',source:'oh',minzoom:16,
@@ -718,13 +680,10 @@ function _initVectorLayers(){
       'symbol-placement':'line','text-max-angle':45,
       'text-allow-overlap':true,'text-ignore-placement':true},
     paint:{'text-color':'white','text-halo-color':'#bf360c','text-halo-width':1.2}});
-  map.on('mouseenter','oh-line',function(e){map.getCanvas().style.cursor='pointer';});
+  map.on('mouseenter','oh-line',function(){map.getCanvas().style.cursor='pointer';});
   map.on('mouseleave','oh-line',function(){map.getCanvas().style.cursor='';});
   map.on('click','oh-line',function(e){if(e.features.length)openDetailOH(e.features[0].properties);});
 
-  // ── PK 50/10/1km : couches ajoutées dans _setupPKLayers une fois données prêtes ──
-
-  // ── PK hectométriques (100 m) ──
   map.addLayer({id:'pkh-c',type:'circle',source:'pk_hecto',minzoom:15,maxzoom:18,
     paint:{'circle-radius':3,'circle-color':'#555','circle-stroke-width':1.5,'circle-stroke-color':'white','circle-opacity':0.9}});
   map.addLayer({id:'pkh-lbl',type:'symbol',source:'pk_hecto',minzoom:15,maxzoom:18,
@@ -732,12 +691,9 @@ function _initVectorLayers(){
       'text-offset':[0,-1.1],'text-anchor':'bottom','text-allow-overlap':false},
     paint:{'text-color':'#222','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.4}});
 
-  // ── PK 10 m / 1 m via PMTiles, compatible Firefox Entreprise ──
   try{
     map.addSource('pk_metric',{type:'vector',url:'pmtiles://'+_pkMetricBase});
 
-    // Le point rouge et le libellé sont dans le même text-field.
-    // Ils passent donc ensemble dans le moteur de collision MapLibre.
     function addMetricTier(id,minz,maxz,size){
       map.addLayer({id:id,type:'symbol',source:'pk_metric','source-layer':'pk_metric',minzoom:minz,maxzoom:maxz,
         layout:{
@@ -754,7 +710,6 @@ function _initVectorLayers(){
     addMetricTier('pkm10-symbol',18,20,9);
     addMetricTier('pkm1-symbol',20,22,9);
 
-    // Diagnostic visible si Firefox/proxy bloque les requêtes HTTP Range.
     _pkMetricArchive.getHeader().then(function(h){
       console.log('PMTiles PK OK',h);
     }).catch(function(e){
@@ -765,7 +720,7 @@ function _initVectorLayers(){
     console.error('pkm error:',e);
     showNetToast('⚠ PK métriques : '+e.message);
   }
-  // ── OA clusters + points ──
+
   map.addLayer({id:'oa-cluster-fill',type:'circle',source:'oa',filter:['has','point_count'],minzoom:11,
     paint:{'circle-radius':['step',['get','point_count'],16,10,22,50,28],
       'circle-color':'#00bcd4','circle-stroke-width':2,'circle-stroke-color':'rgba(255,255,255,.6)'}});
@@ -793,9 +748,6 @@ function _initVectorLayers(){
     showHover(e.lngLat,'🏗 '+c(e.features[0].properties.LIBELLE_LO||e.features[0].properties.CODE_OBJET||'OA'));});
   map.on('mouseleave','oa-pt',function(){map.getCanvas().style.cursor='';hideHover();});
 
-  // ── PAM + Accès : initialisées lazily dans _loadAllData (source inline garantie MapLibre GL v4) ──
-
-  // Fermer le détail sur clic vide
   map.on('click',function(e){
     var allL=['rail-line','oh-line','oa-pt','pam-dot','acc-dot','oapoly-fill','bois-fill','n2-fill','old-fill','mc-fill','eco-fill'];
     var layers=allL.filter(function(l){return !!map.getLayer(l);});
@@ -803,7 +755,6 @@ function _initVectorLayers(){
     if(!hit.length)closeDetail();
   });
 
-  // Légende (collapsible sur mobile)
   var legendCtrl={onAdd:function(){
     var wrap=document.createElement('div');wrap.className='lgv-legend-wrap';
     var hdr=document.createElement('div');hdr.className='lgv-legend-hdr';
@@ -822,20 +773,15 @@ function _initVectorLayers(){
       '<div class="li"><div class="lc" style="background:#ff9800;opacity:.5"></div>Natura ZPS</div>'+
       '<div class="li"><div class="lc" style="background:#81c784;opacity:.6"></div>Écopâturage actif</div>'+
       '<div class="li"><div class="lc" style="background:#388e3c;opacity:.5"></div>Boisements</div>';
-    /* d avant hdr : garantit l'expansion vers le haut sur mobile (flexbox column) */
     wrap.appendChild(d);wrap.appendChild(hdr);
     return wrap;},onRemove:function(){}};
   map.addControl(legendCtrl,'bottom-left');
 }
 
-// ══════════════════════════════════════════════════════════
-// CHARGEMENT DONNÉES
-// ══════════════════════════════════════════════════════════
 function _loadAllData(){
-  // Rail – fitBounds sur la LGV si aucune position n'était sauvegardée
   loadJSON('rail').then(function(d){
     map.getSource('rail').setData(d);
-    var doFit=!_savedPosAtLoad;
+    var doFit=(!window._gps || !window._gps.active);
     if(doFit){
       try{
         var coords=[];
@@ -854,16 +800,12 @@ function _loadAllData(){
     }
   });
 
-  // OA poly
   loadJSON('oa_poly').then(function(d){
     map.getSource('oa_poly').setData(d);
     var cnt=(d.features||[]).length;
     _updateLpCount('oapoly',cnt);
   });
 
-  // PK : chargement géré par _setupPKLayers (pré-fetch parallèle avant map init)
-
-  // Accès – source créée inline (MapLibre GL v4 : pas de setData sur source vide)
   loadJSON('acces').then(function(d){
     var cnt=(d.features||[]).length;
     layerData.acces=(d.features||[]).map(function(f){return{props:f.properties,geom:f.geometry};});
@@ -888,14 +830,12 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.acces=false;_updateLoadStatus();});
 
-  // PK hectométriques
   loadJSON('pk_hecto').then(function(d){
     map.getSource('pk_hecto').setData(d);
     _pkHData=d;
     addPKHectoToIndex(d);
   });
 
-  // OA (Phase 2)
   loadJSON('oa').then(function(d){
     map.getSource('oa').setData(d);
     var cnt=(d.features||[]).length;
@@ -909,7 +849,6 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.oa=false;_updateLoadStatus();});
 
-  // OH
   loadJSON('oh').then(function(d){
     map.getSource('oh').setData(d);
     var cnt=(d.features||[]).length;
@@ -919,10 +858,8 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.oh=false;_updateLoadStatus();});
 
-  // PAM – source créée inline (MapLibre GL v4 : pas de setData sur source vide)
   loadJSON('pam').then(function(d){
     var cnt=(d.features||[]).length;
-    /* Injecter _lat/_lng dans les propriétés pour les liens de navigation */
     (d.features||[]).forEach(function(f){
       if(f.geometry&&f.geometry.type==='Point'){
         f.properties._lat=f.geometry.coordinates[1];
@@ -951,10 +888,7 @@ function _loadAllData(){
     _updateLoadStatus();_debounceBSI();refreshTableIfOpen();
   }).catch(function(){_loading.pam=false;_updateLoadStatus();});
 
-  // Boisements (GeoJSON)
   loadJSONAutoEnc('bois').then(function(d){map.getSource('bois').setData(d);});
-
-  // N2000, OLD, MC, Écopâturage (GeoJSON – légers)
   loadJSONAutoEnc('n2').then(function(d){map.getSource('n2').setData(d);});
   loadJSON('old').then(function(d){map.getSource('old').setData(d);});
   loadJSON('mc').then(function(d){map.getSource('mc').setData(d);});
@@ -970,16 +904,16 @@ function _updateLoadStatus(){
     sl.style.background='rgba(27,94,32,.92)';
     sl.style.color='#fff';
     var ctr=map.getCenter();
-    sl.textContent='✅ v'+APP_VER+' | z'+Math.round(map.getZoom())+
+    sl.textContent='✅ '+APP_VER+' | z'+Math.round(map.getZoom())+
       ' | lng'+ctr.lng.toFixed(2)+' lat'+ctr.lat.toFixed(2)+
       ' | PAM:'+layerData.pam.length+' | Accès:'+layerData.acces.length+' | PK:'+layerData.pk.length;
     sl.style.display='block';
     setTimeout(function(){sl.style.display='none';},12000);
     var b=document.getElementById('ver-badge');
     if(b)b.title='PAM:'+layerData.pam.length+' | Accès:'+layerData.acces.length+' | PK:'+layerData.pk.length;
-    // Fallback : si le tracé LGV n'est pas dans le viewport, recentrer sur la LGV
     setTimeout(function(){
       if(!map.getLayer('rail-line'))return;
+      if(window._gps && window._gps.active)return;
       var feats=map.queryRenderedFeatures({layers:['rail-line']});
       if(!feats.length){
         map.flyTo({center:[0.06,46.11],zoom:8,duration:800});
@@ -999,12 +933,8 @@ function _updateLoadStatus(){
   sl.style.display='block';
 }
 
-// ══════════════════════════════════════════════════════════
-// PANNEAU COUCHES
-// ══════════════════════════════════════════════════════════
 function _initLayersPanel(){
   var body=document.getElementById('layers-panel-body');if(!body)return;
-  // Switcher fond de carte
   var bmHtml='<div class="bm-row">'+
     '<button class="bm-btn active" id="bm-sat" onclick="switchBM(\'sat\')">🛰 Sat</button>'+
     '<button class="bm-btn" id="bm-osm" onclick="switchBM(\'osm\')">🗺 OSM</button>'+
@@ -1053,9 +983,7 @@ function _updateZoomBadges(){
     el.style.color=needed?'#e53935':'#bbb';el.style.fontWeight=needed?'700':'400';
   });
 }
-window.toggleLayer=function(key,on){
-  setVis(key,on);
-};
+window.toggleLayer=function(key,on){setVis(key,on);};
 window.setAllLayers=function(on){
   Object.keys(LAYER_IDS).forEach(function(k){setVis(k,on);});
   document.querySelectorAll('.lp-item input[type=checkbox]').forEach(function(cb){cb.checked=on;});
@@ -1065,13 +993,10 @@ window.switchBM=function(name){
     if(map.getLayer('bm-'+id))map.setLayoutProperty('bm-'+id,'visibility',id===name?'visible':'none');
     var btn=document.getElementById('bm-'+id);if(btn)btn.classList.toggle('active',id===name);
   });
-  /* Labels Esri référence : visibles uniquement avec le fond satellite */
-  if(map.getLayer('bm-sat-ref'))map.setLayoutProperty('bm-sat-ref','visibility',name==='sat'?'visible':'none');
+  if(map.getLayer('bm-labels')){
+    map.setLayoutProperty('bm-labels','visibility',name==='sat'?'visible':'none');
+  }
 };
-function _restoreLayerStates(){
-  /* Persistance supprimée : toutes les couches démarrent visibles par défaut */
-  try{localStorage.removeItem('lgv_layers_v5');localStorage.removeItem('lgv_layers_v4');localStorage.removeItem('lgv_layers_v3');}catch(e){}
-}
 function _updateLpCount(key,n){
   var el=document.getElementById('lp-'+key);if(!el)return;
   el.textContent=n>0?' ('+n+')':'';el.style.color=n>0?'#888':'#ccc';
@@ -1085,95 +1010,28 @@ window._forceLayerOn=function(type){
 };
 
 // ══════════════════════════════════════════════════════════
-// LOCALISATION TEMPS REEL (logique type application de navigation)
-// ══════════════════════════════════════════════════════════
-function _isOnLGV(lat,lng){return lat>=44.3&&lat<=47.7&&lng>=-1.7&&lng<=1.3;}
-function _restoreMapPos(){
-  try{var p=JSON.parse(localStorage.getItem('lgv_map_pos')||'null');if(p&&p.lat&&_isOnLGV(p.lat,p.lng))map.jumpTo({center:[p.lng,p.lat],zoom:Math.min(p.zoom,12)});}catch(e){}
-  var t=null;map.on('moveend',function(){clearTimeout(t);t=setTimeout(function(){try{var c=map.getCenter();localStorage.setItem('lgv_map_pos',JSON.stringify({lat:c.lat,lng:c.lng,zoom:map.getZoom()}));}catch(e){}},400);});
-}
-var _gpsWatch=null,_gpsFollowing=true,_gpsRecent=[],_gpsLastAccepted=null,_gpsAutoStarted=false,_gpsLastDraw=0;
-function _gpsCircle(lng,lat,r){
-  var a=[],R=6378137,lr=lat*Math.PI/180;
-  for(var i=0;i<=64;i++){var q=i/64*Math.PI*2,dx=Math.cos(q)*r,dy=Math.sin(q)*r;a.push([lng+dx/(R*Math.cos(lr))*180/Math.PI,lat+dy/R*180/Math.PI]);}
-  return{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[a]}};
-}
-function _ensureGpsLayers(){
-  if(!map.getSource('_gpsCircle'))map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});
-  if(!map.getLayer('_gpsCircleFill'))map.addLayer({id:'_gpsCircleFill',type:'fill',source:'_gpsCircle',paint:{'fill-color':'#4285f4','fill-opacity':.14}});
-  if(!map.getLayer('_gpsCircleLine'))map.addLayer({id:'_gpsCircleLine',type:'line',source:'_gpsCircle',paint:{'line-color':'#4285f4','line-width':1.2,'line-opacity':.55}});
-  if(!map.getSource('_gpsPoint'))map.addSource('_gpsPoint',{type:'geojson',data:emptyFC()});
-  if(!map.getLayer('_gpsHalo'))map.addLayer({id:'_gpsHalo',type:'circle',source:'_gpsPoint',paint:{'circle-radius':14,'circle-color':'#4285f4','circle-opacity':.18}});
-  if(!map.getLayer('_gpsDot'))map.addLayer({id:'_gpsDot',type:'circle',source:'_gpsPoint',paint:{'circle-radius':7,'circle-color':'#4285f4','circle-stroke-width':3,'circle-stroke-color':'#fff'}});
-}
-function _gpsAccept(pos){
-  var c=pos.coords,lat=+c.latitude,lng=+c.longitude,acc=+c.accuracy,ts=+pos.timestamp||Date.now();
-  if(!isFinite(lat)||!isFinite(lng)||!isFinite(acc)||acc<=0||acc>500||Date.now()-ts>15000)return null;
-  var raw={lat:lat,lng:lng,accuracy:acc,timestamp:ts,speed:isFinite(+c.speed)?Math.max(0,+c.speed):null,heading:isFinite(+c.heading)?+c.heading:null};
-  /* Filtre uniquement les téléportations manifestes. Le point reste réactif pendant le déplacement. */
-  if(_gpsLastAccepted){
-    var dt=Math.max(.2,(ts-_gpsLastAccepted.timestamp)/1000);
-    var d=_haversine(_gpsLastAccepted.lat,_gpsLastAccepted.lng,lat,lng);
-    var maxD=Math.max(80,acc*3,_gpsLastAccepted.accuracy*3,((raw.speed||_gpsLastAccepted.speed||0)*dt)+60);
-    if(d>maxD && acc>=_gpsLastAccepted.accuracy)return null;
-  }
-  _gpsLastAccepted=raw;
-  return raw;
-}
-function _nearestMetricAt(lat,lng,maxM){
-  if(!map.getSource('pk_metric'))return null;
-  var fs=[];
-  try{fs=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'})||[];}catch(e){return null;}
-  var best=null,bestD=isFinite(maxM)?maxM:Infinity;
-  fs.forEach(function(f){
-    if(!f.geometry||f.geometry.type!=='Point')return;
-    var co=f.geometry.coordinates,d=_haversine(lat,lng,co[1],co[0]);
-    if(d<bestD){bestD=d;best={lat:co[1],lng:co[0],d:d,props:f.properties||{},geom:f.geometry};}
-  });
-  return best;
-}
-function _correctGpsToMetricPK(p){
-  /* Map matching : correction vers le PK 1 m uniquement si la mesure est assez proche de la voie. */
-  var tolerance=Math.min(60,Math.max(12,p.accuracy*1.5));
-  var m=_nearestMetricAt(p.lat,p.lng,tolerance);
-  if(!m)return Object.assign({},p,{rawLat:p.lat,rawLng:p.lng,matched:false});
-  return Object.assign({},p,{rawLat:p.lat,rawLng:p.lng,lat:m.lat,lng:m.lng,matched:true,matchDistance:m.d,pkProps:m.props});
-}
-function _drawGps(p,force){
-  _ensureGpsLayers();
-  /* À z18+, corrige la position sur le PK métrique le plus proche. Sinon garde le GPS brut. */
-  var shown=(map.getZoom()>=17)?_correctGpsToMetricPK(p):Object.assign({},p,{matched:false});
-  map.getSource('_gpsPoint').setData({type:'Feature',properties:{accuracy:p.accuracy,matched:shown.matched},geometry:{type:'Point',coordinates:[shown.lng,shown.lat]}});
-  /* Le cercle de précision reste centré sur la mesure GPS brute pour ne pas masquer l'incertitude réelle. */
-  map.getSource('_gpsCircle').setData(_gpsCircle(p.lng,p.lat,Math.max(3,p.accuracy)));
-  var now=Date.now();
-  if(_gpsFollowing&&(force||now-_gpsLastDraw>200)){
-    _gpsLastDraw=now;
-    var targetZoom=p.accuracy<=10?19:p.accuracy<=25?18.5:p.accuracy<=50?18:17;
-    map.jumpTo({center:[shown.lng,shown.lat],zoom:Math.max(map.getZoom(),targetZoom)});
-  }
-}
-function _setLocateButton(){var b=document.getElementById('locate-btn');if(!b)return;b.style.background=_gpsWatch===null?'white':(_gpsFollowing?'#4285f4':'#dbeafe');b.style.color=_gpsWatch===null?'#111':(_gpsFollowing?'white':'#1565c0');b.title=_gpsFollowing?'Suivi GPS actif, appuyer pour libérer la carte':'Position active, appuyer pour recentrer';}
-function startLiveLocation(follow){
-  if(!navigator.geolocation){showNetToast('📍 Géolocalisation indisponible');return;}
-  if(typeof follow==='boolean')_gpsFollowing=follow;
-  if(_gpsWatch!==null){_setLocateButton();return;}
-  _gpsRecent=[];showNetToast('📡 Recherche du signal GPS…');
-  _gpsWatch=navigator.geolocation.watchPosition(function(pos){var p=_gpsAccept(pos);if(!p)return;_drawGps(p,false);showNetToast('📍 GPS ±'+Math.round(p.accuracy)+' m'+(_gpsFollowing?' · suivi actif':' · carte libre'));},function(e){if(e.code===1){stopLiveLocation();showNetToast('📍 Autorisation refusée');}else showNetToast('📍 Signal GPS indisponible');},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
-  _setLocateButton();
-}
-function stopLiveLocation(){if(_gpsWatch!==null){navigator.geolocation.clearWatch(_gpsWatch);_gpsWatch=null;}_setLocateButton();showNetToast('📍 Suivi GPS arrêté');}
-function locateMe(){
-  if(_gpsWatch===null){_gpsFollowing=true;startLiveLocation(true);}
-  else{_gpsFollowing=!_gpsFollowing;if(_gpsFollowing&&_gpsLastAccepted)_drawGps(_gpsLastAccepted,true);_setLocateButton();showNetToast(_gpsFollowing?'📍 Suivi temps réel actif':'📍 Position active, carte libre');}
-}
-window.locateMe=locateMe;window.startLiveLocation=startLiveLocation;window.stopLiveLocation=stopLiveLocation;
-/* Le déplacement manuel ne coupe plus le suivi. Utiliser le bouton GPS pour libérer/reprendre la carte. */
-map.once('load',function(){
-  _setLocateButton();if(!navigator.geolocation||_gpsAutoStarted)return;_gpsAutoStarted=true;
-  var mobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(!mobile)return;
-  if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:'geolocation'}).then(function(r){if(r.state==='granted')startLiveLocation(true);}).catch(function(){});
-});
+// GPS v3.73 - suivi unique, anti-cache et sans relance automatique
+window._gps={active:false,following:true,mode:'watch',watchId:null,timer:null,last:null,lastFixAt:0,lastRawTimestamp:0,session:0,permission:'unknown',stale:false,_lastToastAt:0};
+var GPS_MAX_ACCURACY=3000,GPS_MAX_FIX_AGE=15000,GPS_STALE_AFTER=12000;
+function _gpsDotFeature(p){return{type:'Feature',properties:{accuracy:p.accuracy},geometry:{type:'Point',coordinates:[p.lng,p.lat]}};}
+function _gpsCirclePoly(lng,lat,r){var a=[],R=6378137,lr=lat*Math.PI/180,i,q,dx,dy;for(i=0;i<=64;i++){q=i/64*Math.PI*2;dx=Math.cos(q)*r;dy=Math.sin(q)*r;a.push([lng+dx/(R*Math.max(.15,Math.cos(lr)))*180/Math.PI,lat+dy/R*180/Math.PI]);}return{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[a]}};}
+function _ensureGpsLayers(){if(!map.getSource('_gpsCircle'))map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});if(!map.getLayer('_gpsCircleFill'))map.addLayer({id:'_gpsCircleFill',type:'fill',source:'_gpsCircle',paint:{'fill-color':'#4285f4','fill-opacity':.12}});if(!map.getLayer('_gpsCircleLine'))map.addLayer({id:'_gpsCircleLine',type:'line',source:'_gpsCircle',paint:{'line-color':'#4285f4','line-width':1.2,'line-opacity':.5}});if(!map.getSource('_gpsPoint'))map.addSource('_gpsPoint',{type:'geojson',data:emptyFC()});if(!map.getLayer('_gpsHalo'))map.addLayer({id:'_gpsHalo',type:'circle',source:'_gpsPoint',paint:{'circle-radius':15,'circle-color':'#4285f4','circle-opacity':.2}});if(!map.getLayer('_gpsDot'))map.addLayer({id:'_gpsDot',type:'circle',source:'_gpsPoint',paint:{'circle-radius':7,'circle-color':'#4285f4','circle-opacity':1,'circle-stroke-width':3,'circle-stroke-color':'#fff'}});}
+function _gpsSetStatus(m,f){var n=Date.now(),g=window._gps;if(!f&&n-g._lastToastAt<2500)return;g._lastToastAt=n;if(typeof showNetToast==='function')showNetToast(m);}
+function _gpsQuality(p){var e=document.getElementById('gps-quality');if(!e)return;if(!p){e.style.display='none';return;}var age=Math.max(0,Date.now()-p.timestamp),txt='GPS ±'+Math.round(p.accuracy)+' m';if(age>GPS_STALE_AFTER)txt+=' · position ancienne';e.textContent=txt;e.style.display='block';e.style.color=age>GPS_STALE_AFTER?'#e65100':'#1b5e20';}
+function _gpsUpdateBadge(){var g=window._gps,b=document.getElementById('ver-badge'),f=document.getElementById('gps-fab'),t='GPS off';if(g.active)t=g.last?(g.stale?'GPS ancien':'GPS ±'+Math.round(g.last.accuracy)+'m'):'GPS recherche…';if(b)b.textContent='v3.73 '+t;if(f){f.classList.toggle('gps-active',g.active&&!!g.last&&!g.stale);f.classList.toggle('gps-searching',g.active&&(!g.last||g.stale));}}
+function _gpsHideRecenterBanner(){var e=document.getElementById('gps-recenter-banner');if(e)e.style.display='none';}
+function _gpsShowRecenterBanner(){var e=document.getElementById('gps-recenter-banner');if(e&&window._gps.active)e.style.display='flex';}
+function _gpsRecenter(p,first){var g=window._gps;if(!g.active||!g.following||!p)return;var o={center:[p.lng,p.lat],duration:320,essential:true};if(first)o.zoom=Math.max(17,map.getZoom());try{map.easeTo(o);}catch(e){}}
+function _gpsPosition(pos){var g=window._gps;if(!g.active||!pos||!pos.coords)return;var co=pos.coords,ts=+pos.timestamp||Date.now(),age=Date.now()-ts,acc=+co.accuracy,first=!g.last,p;if(age>GPS_MAX_FIX_AGE)return;if(ts<=g.lastRawTimestamp&&g.last)return;if(!isFinite(+co.latitude)||!isFinite(+co.longitude)||!isFinite(acc)||acc<=0||acc>GPS_MAX_ACCURACY)return;g.lastRawTimestamp=ts;p={lat:+co.latitude,lng:+co.longitude,accuracy:acc,speed:isFinite(+co.speed)?+co.speed:null,heading:isFinite(+co.heading)?+co.heading:null,timestamp:ts,receivedAt:Date.now(),source:'watch'};g.last=p;g.lastFixAt=Date.now();g.stale=false;_ensureGpsLayers();map.getSource('_gpsPoint').setData(_gpsDotFeature(p));map.getSource('_gpsCircle').setData(_gpsCirclePoly(p.lng,p.lat,Math.max(3,p.accuracy)));_gpsRecenter(p,first);_gpsQuality(p);_gpsUpdateBadge();if(first){_gpsSetStatus('📍 Position actuelle trouvée · suivi actif',true);_gpsHideRecenterBanner();}}
+function _gpsError(e){if(!e)return;if(e.code===1){window._gps.permission='denied';_gpsStop(true);_gpsSetStatus('📍 Localisation refusée dans Firefox.',true);}else if(e.code===2)_gpsSetStatus('📡 Position indisponible. Vérifiez le GPS Android.');}
+function _gpsStart(){var g=window._gps;if(g.active||g.watchId!==null)return;if(!navigator.geolocation){_gpsSetStatus('📍 Géolocalisation indisponible',true);return;}var local=location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.hostname==='::1';if(!window.isSecureContext&&!local){_gpsSetStatus('🔒 GPS : HTTPS requis',true);return;}g.active=true;g.following=true;g.last=null;g.lastFixAt=0;g.lastRawTimestamp=0;g.stale=false;g.session++;_gpsQuality(null);try{if(map.getSource('_gpsPoint'))map.getSource('_gpsPoint').setData(emptyFC());if(map.getSource('_gpsCircle'))map.getSource('_gpsCircle').setData(emptyFC());}catch(e){}_gpsUpdateBadge();_gpsSetStatus('📡 Recherche d’une position GPS actuelle…',true);var x=g.session;g.watchId=navigator.geolocation.watchPosition(function(p){if(g.active&&x===g.session)_gpsPosition(p);},function(e){if(x===g.session)_gpsError(e);},{enableHighAccuracy:true,maximumAge:0,timeout:30000});}
+function _gpsStop(silent){var g=window._gps;if(g.watchId!==null){try{navigator.geolocation.clearWatch(g.watchId);}catch(e){}g.watchId=null;}g.session++;g.active=false;g.following=false;g.last=null;g.stale=false;try{if(map.getSource('_gpsPoint'))map.getSource('_gpsPoint').setData(emptyFC());if(map.getSource('_gpsCircle'))map.getSource('_gpsCircle').setData(emptyFC());}catch(e){}_gpsQuality(null);_gpsHideRecenterBanner();_gpsUpdateBadge();if(!silent)_gpsSetStatus('📍 Suivi GPS arrêté',true);}
+function locateMe(){var g=window._gps;if(!g.active){_gpsStart();return;}g.following=true;_gpsHideRecenterBanner();if(g.last&&!g.stale){_gpsRecenter(g.last,true);_gpsSetStatus('📍 Recentrage actif',true);}else _gpsSetStatus('📡 En attente d’une position GPS actuelle…',true);}
+function startLiveLocation(){locateMe();}function stopLiveLocation(){_gpsStop(false);}window.locateMe=locateMe;window.startLiveLocation=startLiveLocation;window.stopLiveLocation=stopLiveLocation;
+map.on('dragstart',function(e){if(window._gps.active&&e&&e.originalEvent){window._gps.following=false;_gpsShowRecenterBanner();}});map.on('zoomstart',function(e){if(window._gps.active&&e&&e.originalEvent){window._gps.following=false;_gpsShowRecenterBanner();}});map.on('rotatestart',function(e){if(window._gps.active&&e&&e.originalEvent){window._gps.following=false;_gpsShowRecenterBanner();}});
+setInterval(function(){var g=window._gps;if(!g.active||!g.last)return;g.stale=Date.now()-g.lastFixAt>GPS_STALE_AFTER;_gpsQuality(g.last);_gpsUpdateBadge();},2000);
+_gpsUpdateBadge();
+
 // ══════════════════════════════════════════════════════════
 // DETECTION PK / ACCES / PAM LE PLUS PROCHE
 // ══════════════════════════════════════════════════════════
@@ -1202,126 +1060,34 @@ function _nearestN(lat,lng,features,n){
   scored.sort(function(a,b){return a.d-b.d;});
   return scored.slice(0,n);
 }
-function _dStr(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
+function _dStr(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
 function findNearest(){
   if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible.');return;}
-  /* Réutilise d'abord la position du suivi temps réel, sans relancer une localisation réseau moins précise. */
-  if(_gpsLastAccepted&&Date.now()-_gpsLastAccepted.timestamp<5000&&_gpsLastAccepted.accuracy<=80){
-    _gpsFollowing=true;_drawGps(_gpsLastAccepted,true);_setLocateButton();
-    _finishFindNearest(_gpsLastAccepted.lat,_gpsLastAccepted.lng,_gpsLastAccepted.accuracy);return;
-  }
-  openDetail('📍 Éléments LGV proches',
-    '<div style="padding:20px;text-align:center;color:#888">'+
-    '<p style="font-size:14px;margin:0">⏳ Localisation GPS…</p>'+
-    '<p style="font-size:10px;margin-top:8px;line-height:1.5;color:#aaa">Patientez jusqu\'à 25s sur Android<br>Zoom z18 pour précision PK 1m</p></div>');
-
-  var _wid=null,_done=false,_bestAcc=Infinity,_bestLat,_bestLng,_gotFirst=false;
-
-  function _commit(lat,lng,acc){
-    if(_done)return; _done=true;
-    if(_wid!==null){navigator.geolocation.clearWatch(_wid);_wid=null;}
-    map.flyTo({center:[lng,lat],zoom:Math.max(map.getZoom(),18),duration:800});
-    var mdone=false;
-    function onReady(){if(mdone)return;mdone=true;map.off('idle',onReady);_finishFindNearest(lat,lng,acc);}
-    map.on('idle',onReady);
-    setTimeout(function(){if(!mdone){mdone=true;map.off('idle',onReady);_finishFindNearest(lat,lng,acc);}},4000);
-  }
-
-  var _deadline=setTimeout(function(){
-    if(_wid!==null){navigator.geolocation.clearWatch(_wid);_wid=null;}
-    if(!_done){
-      if(_gotFirst){_commit(_bestLat,_bestLng,_bestAcc);}
-      else{closeDetail();showNetToast('📍 GPS impossible : délai dépassé (25s)');}
-    }
-  },25000);
-
-  /* Phase 1 – réseau rapide */
-  navigator.geolocation.getCurrentPosition(function(pos){
-    if(_done)return;
-    var acc=pos.coords.accuracy,lat=pos.coords.latitude,lng=pos.coords.longitude;
-    if(acc<_bestAcc){_bestAcc=acc;_bestLat=lat;_bestLng=lng;}
-    if(!_gotFirst){
-      _gotFirst=true;
-      openDetail('📍 Éléments LGV proches',
-        '<div style="padding:20px;text-align:center;color:#888">'+
-        '<p style="font-size:14px;margin:0">📡 Position ±'+Math.round(acc)+'m</p>'+
-        '<p style="font-size:10px;margin-top:8px;color:#aaa">GPS haute précision en cours…</p></div>');
-    }
-    if(acc<=100){clearTimeout(_deadline);_commit(lat,lng,acc);}
-  },function(){},{enableHighAccuracy:false,timeout:4000,maximumAge:30000});
-
-  /* Phase 2 – GPS haute précision */
-  _wid=navigator.geolocation.watchPosition(function(pos){
-    if(_done)return;
-    var acc=pos.coords.accuracy,lat=pos.coords.latitude,lng=pos.coords.longitude;
-    if(acc<_bestAcc){_bestAcc=acc;_bestLat=lat;_bestLng=lng;}
-    if(!_gotFirst){
-      _gotFirst=true;
-      openDetail('📍 Éléments LGV proches',
-        '<div style="padding:20px;text-align:center;color:#888">'+
-        '<p style="font-size:14px;margin:0">📡 Position ±'+Math.round(acc)+'m</p>'+
-        '<p style="font-size:10px;margin-top:8px;color:#aaa">Calcul des éléments proches…</p></div>');
-    }
-    if(acc<=50){clearTimeout(_deadline);_commit(lat,lng,acc);}
-  },function(e){
-    clearTimeout(_deadline);
-    if(_wid!==null){navigator.geolocation.clearWatch(_wid);_wid=null;}
-    if(!_gotFirst){
-      var msg=e.code===1?'permission refusée':e.code===3?'délai GPS dépassé':e.message;
-      closeDetail();showNetToast('📍 Localisation impossible : '+msg);
-    } else {
-      _commit(_bestLat,_bestLng,_bestAcc);
-    }
-  },{enableHighAccuracy:true,timeout:25000,maximumAge:0});
+  openDetail('📍 Éléments LGV proches','<div style="padding:20px;text-align:center;color:#888"><p style="font-size:14px;margin:0">⏳ Position GPS actuelle…</p><p style="font-size:10px;margin-top:8px;color:#aaa">Calcul PK fiable à partir des PK 100 m</p></div>');
+  window._gps.following=true;if(!window._gps.active)_gpsStart();var t=Date.now(),done=false;
+  function ready(){var g=window._gps;if(done)return;if(g.last&&!g.stale&&Date.now()-g.lastFixAt<15000){done=true;map.flyTo({center:[g.last.lng,g.last.lat],zoom:Math.max(map.getZoom(),17),duration:550});setTimeout(function(){_finishFindNearest(g.last.lat,g.last.lng,g.last.accuracy);},650);return;}if(!g.active&&g.permission==='denied'){done=true;closeDetail();showNetToast('📍 Localisation bloquée dans Firefox.');return;}if(Date.now()-t>=30000){done=true;closeDetail();showNetToast('📍 Aucun fix GPS actuel reçu.');return;}setTimeout(ready,400);}ready();
 }
 window.findNearest=findNearest;
 
-/* Extrait le côté (1 ou 2) depuis n'importe quel nom de voie/axe */
 function _sideNum(v){var m=String(v||'').match(/[12]/);return m?m[0]:'';}
 
-/* Normalise un nom de voie/axe en {b:branche_canonique, s:côté}
- *
- * Conventions dans les données :
- *   PK (_voie)  : LGV1, V1, RMS1, R1MS, RJ2, RV1 …
- *   Accès (AXE) : LGV V1, MS1, JU2, VN1 …      (sans préfixe R)
- *   PAM  (axe)  : LGV (générique), MS1, JU2, VN1…
- *
- * Règles :
- *  1. LGV1 / V1 / LGV V1          → {b:'lgv', s:'1'}
- *     LGV2 / V2 / LGV V2          → {b:'lgv', s:'2'}
- *     LGV / LGV BMC / LGV V5 …   → {b:'lgv', s:''} générique
- *
- *  2. Avec préfixe R (format PK) :
- *     R<LETTRES><CHIFFRE> ou R<CHIFFRE><LETTRES>
- *     Aliases R-only : RJ→JU, RV→VN (noms différents côté Accès/PAM)
- *
- *  3. Sans préfixe R (format Accès/PAM) :
- *     <LETTRES><CHIFFRE> ou <CHIFFRE><LETTRES>  →  branche = lettres telles quelles
- *     PAS d'alias ici : V sans R = LGV (déjà géré en #1), VN = Villeneuve
- */
 function _parseVoie(v){
   var raw=String(v||'').trim().toUpperCase();
   if(!raw)return{b:'',s:''};
-
-  /* 1 — LGV main line (toutes variantes connues) */
   if(raw==='LGV1'||raw==='V1')          return{b:'lgv',s:'1'};
   if(raw==='LGV2'||raw==='V2')          return{b:'lgv',s:'2'};
   if(raw==='LGV V1')                    return{b:'lgv',s:'1'};
   if(raw==='LGV V2')                    return{b:'lgv',s:'2'};
   if(raw==='LGV'||/^LGV[\s]/.test(raw))return{b:'lgv',s:''};
-
-  /* 2 — Format PK avec R (ex: RMS1, R1MS, RJ2, RV1) */
-  var mR =raw.match(/^R([A-Z]+?)([12])$/);   /* R + lettres + chiffre */
-  var mRi=raw.match(/^R([12])([A-Z]+)$/);    /* R + chiffre + lettres */
+  var mR =raw.match(/^R([A-Z]+?)([12])$/);
+  var mRi=raw.match(/^R([12])([A-Z]+)$/);
   if(mR||mRi){
     var letters2,digit2;
     if(mR){letters2=mR[1];digit2=mR[2];}
     else  {letters2=mRi[2];digit2=mRi[1];}
-    var RMAP={J:'JU',V:'VN'};              /* alias uniquement avec R */
+    var RMAP={J:'JU',V:'VN'};
     return{b:(RMAP[letters2]||letters2).toLowerCase(),s:digit2};
   }
-
-  /* 3 — Format Accès/PAM sans R (ex: MS1, VN1, JU2, CA2) */
   var m=raw.match(/^([A-Z]+?)([12])$/)||raw.match(/^([12])([A-Z]+)$/);
   if(!m)return{b:raw.toLowerCase(),s:''};
   var letters3,digit3;
@@ -1330,59 +1096,22 @@ function _parseVoie(v){
   return{b:letters3.toLowerCase(),s:digit3};
 }
 
-function _finishFindNearest(lat,lng,acc,_metricRetry){
-  var npk=null,pkPrec='PK 1m';
-  console.log('_finishFindNearest: lat='+lat.toFixed(5)+' lng='+lng.toFixed(5)+' retry='+!!_metricRetry);
-
-  /* Distance à la LGV estimée avec le référentiel hectométrique, toujours chargé. */
-  var nearH=null;
-  if(_pkHData&&_pkHData.features&&_pkHData.features.length){
-    nearH=_nearestOf(lat,lng,_pkHData.features.map(function(f){return{props:f.properties,geom:f.geometry};}));
-  }
-  var distLGV=nearH?nearH.d:Infinity;
-  var CLOSE_TO_LGV=500; /* À 500 m ou moins, résultat obligatoirement issu du PK 1 m. */
-
-  /* Cherche assez loin dans les tuiles métriques déjà chargées. */
-  var metric=_nearestMetricAt(lat,lng,Math.max(600,acc*5));
-  if(metric){
-    npk={f:{props:metric.props,geom:metric.geom},d:metric.d};
-    pkPrec='PK 1m';
-  }else if(distLGV<=CLOSE_TO_LGV && !_metricRetry){
-    /* À 200 m, la voie peut être hors écran à z18. On cadre le GPS ET la LGV,
-       ce qui force le chargement de la bonne tuile pk_metric, puis on réessaie. */
-    var hc=nearH.f.geom.coordinates;
-    var done=false;
-    function retryMetric(){
-      if(done)return;done=true;map.off('idle',retryMetric);
-      _finishFindNearest(lat,lng,acc,true);
-    }
-    map.fitBounds([[Math.min(lng,hc[0]),Math.min(lat,hc[1])],[Math.max(lng,hc[0]),Math.max(lat,hc[1])]],
-      {padding:80,maxZoom:18,duration:500});
-    map.on('idle',retryMetric);
-    setTimeout(retryMetric,3000);
-    return;
-  }else if(distLGV>CLOSE_TO_LGV && nearH){
-    /* Loin de la LGV seulement : repli explicite sur le PK 100 m. */
-    npk=nearH;
-    pkPrec='PK 100m (hors proximité LGV)';
-  }else{
-    openDetail('📍 PK métrique indisponible',
-      '<div style="padding:16px;line-height:1.5">'+
-      '<b>Vous êtes à environ '+(isFinite(distLGV)?Math.round(distLGV)+' m':'une distance inconnue')+' de la LGV.</b><br>'+
-      '<span style="color:#666">La zone est considérée proche : aucun PK 100 m approximatif n’est utilisé. Vérifiez le chargement de <code>data/pk_metric.pmtiles</code>.</span></div>');
-    return;
-  }
-
-  console.log('_finishFindNearest: résultat prec='+pkPrec+' npk='+(npk?'oui':'non'));
-
-  /* Détecter branche + côté depuis la voie du PK le plus proche */
+function _pkMetersValue(p){var v=p&&(p._pk_label!=null?p._pk_label:p.pk),m;if(v==null)return-1;m=String(v).match(/(\d+)\s*\+\s*(\d+)/);if(m)return parseInt(m[1],10)*1000+parseInt(m[2],10);v=parseFloat(v);return isNaN(v)?-1:Math.round(v);}
+function _mercXY(lng,lat){var R=6378137,r=Math.PI/180;return{x:R*lng*r,y:R*Math.log(Math.tan(Math.PI/4+lat*r/2))};}
+function _reliablePKFromHecto(lat,lng){
+  if(!_pkHData||!_pkHData.features||_pkHData.features.length<2)return null;
+  var target=_mercXY(lng,lat),groups={},i,f,p,m,key,co;
+  for(i=0;i<_pkHData.features.length;i++){f=_pkHData.features[i];if(!f.geometry||f.geometry.type!=='Point')continue;p=f.properties||{};m=_pkMetersValue(p);if(m<0)continue;key=String(p._voie||p.voie||p.VOIE||'default');co=f.geometry.coordinates;(groups[key]||(groups[key]=[])).push({m:m,co:co,p:p});}
+  var best=null,g,a,b,A,B,vx,vy,wx,wy,len2,t,px,py,d,pkm;
+  for(key in groups){if(!groups.hasOwnProperty(key))continue;g=groups[key];g.sort(function(x,y){return x.m-y.m;});for(i=0;i<g.length-1;i++){a=g[i];b=g[i+1];if(b.m<=a.m||b.m-a.m>500)continue;A=_mercXY(a.co[0],a.co[1]);B=_mercXY(b.co[0],b.co[1]);vx=B.x-A.x;vy=B.y-A.y;wx=target.x-A.x;wy=target.y-A.y;len2=vx*vx+vy*vy;if(!len2)continue;t=(wx*vx+wy*vy)/len2;if(t<0)t=0;if(t>1)t=1;px=A.x+t*vx;py=A.y+t*vy;d=Math.sqrt((target.x-px)*(target.x-px)+(target.y-py)*(target.y-py));pkm=Math.round(a.m+t*(b.m-a.m));if(!best||d<best.d){best={d:d,m:pkm,voie:key,co:[a.co[0]+t*(b.co[0]-a.co[0]),a.co[1]+t*(b.co[1]-a.co[1])],props:a.p};}}}
+  if(!best)return null;var km=Math.floor(best.m/1000),mm=best.m%1000,props={};for(key in best.props)props[key]=best.props[key];props._pk_label=km+'+'+('000'+mm).slice(-3);props._voie=best.voie;return{f:{props:props,geom:{type:'Point',coordinates:best.co}},d:best.d,method:'projection PK 100 m'};
+}
+function _finishFindNearest(lat,lng,acc){
+  var npk=_reliablePKFromHecto(lat,lng), pkPrec=npk?'projection fiable (~1 m calculé)':'?';
+  if(!npk&&layerData.pk.length){npk=_nearestOf(lat,lng,layerData.pk);if(npk)pkPrec='1 km (secours)';}
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
-  var voieN=_sideNum(pkVoie);     /* '1' ou '2' – pour affichage */
-  var pkP=_parseVoie(pkVoie);     /* {b, s} – pour filtrage précis */
+  var pkP=_parseVoie(pkVoie);
 
-  /* Accès : branche + côté identiques (a.s==='' = générique, accepté)
-     Pas de fallback cross-voie — si pas de match, on garde tout le pool
-     RMS1→MS1, LGV1→LGV V1, RJ2→JU2, RV1→VN1 */
   var accPool=layerData.acces;
   if(pkP.b){
     var accFiltered=accPool.filter(function(f){
@@ -1393,7 +1122,6 @@ function _finishFindNearest(lat,lng,acc,_metricRetry){
   }
   var naccs=_nearestN(lat,lng,accPool,3);
 
-  /* PAM : même règle ; LGV générique (a.s==='') accepté pour LGV1 et LGV2 */
   var pamPool=layerData.pam;
   if(pkP.b){
     var pamFiltered=pamPool.filter(function(f){
@@ -1427,7 +1155,7 @@ function _finishFindNearest(lat,lng,acc,_metricRetry){
     html+='<div style="padding:10px;background:#fff3e0;border-radius:8px;border-left:4px solid #cc0000">';
     html+='<div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px">PK le plus proche</div>';
     html+='<div style="font-size:18px;font-weight:700;color:#cc0000">'+lbl+'</div>';
-    html+='<div style="font-size:12px;color:#555">Voie : <b>'+c(p._voie||p.voie||'—')+'</b>'+(pkP.b?' (branche '+pkP.b.toUpperCase()+', côté '+pkP.s+'  — Accès+PAM filtrés)':'')+'</div>';
+    html+='<div style="font-size:12px;color:#555">Voie : <b>'+c(p._voie||p.voie||'—')+'</b>'+(pkP.b?' (branche '+pkP.b.toUpperCase()+', côté '+pkP.s+')':'')+'</div>';
     html+='<div style="font-size:13px;font-weight:600;margin-top:4px">'+_dStr(npk.d)+'</div>';
     html+=zoomBtn(co,18,'→ Zoom sur ce PK');
     html+='</div>';
@@ -1472,9 +1200,6 @@ function _finishFindNearest(lat,lng,acc,_metricRetry){
   openDetail('📍 Éléments LGV proches',html);
 }
 
-// ══════════════════════════════════════════════════════════
-// RECHERCHE
-// ══════════════════════════════════════════════════════════
 function _initSearch(){
   var inp=document.getElementById('search-input');
   var res=document.getElementById('search-res');
@@ -1550,9 +1275,6 @@ function buildSearchIndex(){
       sub:[c(p.axe),c(p.pk_ef||p.pk_gc)].filter(Boolean).join(' • '),geom:f.geom,props:p});});
 }
 
-// ══════════════════════════════════════════════════════════
-// TABLE ATTRIBUTAIRE
-// ══════════════════════════════════════════════════════════
 var _tblOpen=false,_tblSortCol=null,_tblSortAsc=true;
 function toggleTable(){_tblOpen=!_tblOpen;document.getElementById('tbl-panel').classList.toggle('open',_tblOpen);if(_tblOpen)fillTable();}
 function refreshTableIfOpen(){if(_tblOpen)fillTable();}
@@ -1599,14 +1321,8 @@ function zoomToTblFeature(idx){
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// LIGHTBOX
-// ══════════════════════════════════════════════════════════
 function showLightbox(img){document.getElementById('lb-img').src=img.src;document.getElementById('lightbox').classList.add('open');}
 
-// ══════════════════════════════════════════════════════════
-// PIÈCES JOINTES
-// ══════════════════════════════════════════════════════════
 function getPJList(code){try{return JSON.parse(localStorage.getItem('pj_'+code)||'[]');}catch(e){return[];}}
 function savePJList(code,list){try{localStorage.setItem('pj_'+code,JSON.stringify(list));}catch(e){}}
 function _dpjItems(code){
@@ -1643,9 +1359,6 @@ function dpjAdd(code,input){
   });input.value='';
 }
 
-// ══════════════════════════════════════════════════════════
-// PANNEAU DÉTAIL
-// ══════════════════════════════════════════════════════════
 function openDetail(title,bodyHtml){
   var dp=document.getElementById('detail-panel');
   document.getElementById('detail-title').innerHTML=title;
@@ -1734,8 +1447,6 @@ function openDetailOH(p){
     dpSp(p);
   openDetail('💧 '+(code?code+' – ':'')+lib,body);
 }
-// PAM : JAMAIS de dpPJWrap, dpSp, dpPhoto (contraintes permanentes)
-/* Boutons navigation Google Maps + Waze vers un point */
 function _navLinks(lat,lng){
   var la=parseFloat(lat),lo=parseFloat(lng);
   if(isNaN(la)||isNaN(lo))return'';
@@ -1756,21 +1467,17 @@ function openDetailPAM(p){
     (c(p.commentair)?dpSec('Commentaire',[['Note',p.commentair]]):'');
   openDetail('🌱 '+lib,body);
 }
-// Accès : pas de dpPJWrap, dpSp, dpPhoto
 function openDetailAcces(p){
   var name=c(p.NOM_ACCES||p.Name||'Accès');
   var lat=p._lat||p.LAT_DD, lng=p._lng||p.LONG_DD;
   openDetail('🚧 '+name,dpHero('Accès','🚧 '+name,'','#e65100')+_navLinks(lat,lng)+dpAllFields(p));
 }
-// FAB toggle (mobile)
 function toggleFabBar(){
   var bar=document.getElementById('fab-bar');
   var btn=document.getElementById('fab-toggle');
   bar.classList.toggle('expanded');
   btn.classList.toggle('active');
 }
-// Swipe mobile : uniquement sur le drag handle (évite conflit scroll content)
-// Haut→plein, bas depuis plein→compact, bas depuis compact→ferme
 (function(){
   var dp=document.getElementById('detail-panel');
   var handle=document.getElementById('dp-drag-handle');
@@ -1786,9 +1493,6 @@ function toggleFabBar(){
   handle.addEventListener('click',function(){dp.classList.toggle('dp-full');});
 })();
 
-// ══════════════════════════════════════════════════════════
-// KML / KMZ
-// ══════════════════════════════════════════════════════════
 var _kmlLayers={},_kmlPending=null,_kmlIdx=0;
 function importKML(input){
   var file=input.files[0];if(!file)return;
@@ -1806,17 +1510,9 @@ function confirmKML(store){
     var sid='kml-'+(++_kmlIdx);
     map.addSource(sid,{type:'geojson',data:geojson});
     var ids=[];
-    map.addLayer({id:sid+'-fill',type:'fill',source:sid,
-      filter:['==',['geometry-type'],'Polygon'],
-      paint:{'fill-color':'#f44336','fill-opacity':0.28}});
-    ids.push(sid+'-fill');
-    map.addLayer({id:sid+'-line',type:'line',source:sid,
-      paint:{'line-color':'#f44336','line-width':2}});
-    ids.push(sid+'-line');
-    map.addLayer({id:sid+'-pt',type:'circle',source:sid,
-      filter:['==',['geometry-type'],'Point'],
-      paint:{'circle-radius':7,'circle-color':'#f44336','circle-stroke-width':2,'circle-stroke-color':'white'}});
-    ids.push(sid+'-pt');
+    map.addLayer({id:sid+'-fill',type:'fill',source:sid,filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':'#f44336','fill-opacity':0.28}});ids.push(sid+'-fill');
+    map.addLayer({id:sid+'-line',type:'line',source:sid,paint:{'line-color':'#f44336','line-width':2}});ids.push(sid+'-line');
+    map.addLayer({id:sid+'-pt',type:'circle',source:sid,filter:['==',['geometry-type'],'Point'],paint:{'circle-radius':7,'circle-color':'#f44336','circle-stroke-width':2,'circle-stroke-color':'white'}});ids.push(sid+'-pt');
     map.on('click',sid+'-pt',function(e){
       var p=e.features[0].properties;
       new maplibregl.Popup().setLngLat(e.lngLat)
@@ -1900,13 +1596,12 @@ function confirmKMLDirect(geojson,fname){
     _kmlLayers[lname]={sourceId:sid,layerIds:ids};}catch(e){}
 }
 
-// ══════════════════════════════════════════════════════════
-// PWA + RÉSEAU
-// ══════════════════════════════════════════════════════════
 var _installPrompt=null;
 (function(){
   var standalone=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone;
+  var mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   if(standalone){var b=document.getElementById('install-btn');if(b)b.style.display='none';}
+  else if(mobile){var b2=document.getElementById('install-btn');if(b2)b2.style.display='flex';}
 })();
 window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();_installPrompt=e;
@@ -1918,9 +1613,15 @@ window.addEventListener('appinstalled',function(){
 });
 function installApp(){
   if(_installPrompt){_installPrompt.prompt();_installPrompt.userChoice.then(function(){_installPrompt=null;});return;}
-  alert('📲 Installer :\n\n✅ Android Chrome : ⋮ → "Ajouter à l\'écran d\'accueil"\n🍎 Safari iOS : 🔗 → "Sur l\'écran d\'accueil"\n💻 Chrome/Edge PC : icône dans la barre d\'adresse');
+  alert('📲 Écran d\'accueil :\n\nFirefox Android : menu ⋮ → « Ajouter à l\'écran d\'accueil ».\n\nChrome Android : menu ⋮ → « Ajouter à l\'écran d\'accueil » ou « Installer l\'application ».');
 }
 window.installApp=installApp;
+function clearOldAppCaches(){
+  try{if('caches' in window)caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));});}catch(e){}
+  try{localStorage.removeItem('lgv_cached_v3');}catch(e){}
+  showNetToast('♻️ Anciens caches supprimés');
+}
+window.clearOldAppCaches=clearOldAppCaches;
 var _netToastTimer=null;
 function showNetToast(msg){
   var t=document.getElementById('net-toast');if(!t)return;
@@ -1928,83 +1629,16 @@ function showNetToast(msg){
   clearTimeout(_netToastTimer);
   _netToastTimer=setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.style.display='none';},300);},3000);
 }
-function updateNetBadge(){
-  var b=document.getElementById('ver-badge');if(b)b.textContent=APP_VER+(navigator.onLine?' 🟢':' 🔴');
-  var ob=document.getElementById('offline-btn');
-  if(ob){var cached=localStorage.getItem('lgv_cached_v3');
-    ob.dataset.state=!navigator.onLine?(cached?'ready':'offline'):(cached?'ready':'');}
-}
+function updateNetBadge(){_gpsUpdateBadge();}
 window.addEventListener('online',function(){updateNetBadge();showNetToast('🟢 En ligne');});
-window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴 Hors ligne – mode cache actif');});
-async function warmOfflineCache(){
-  var btn=document.getElementById('offline-btn');
-  if(!navigator.onLine){showNetToast('🔴 Hors ligne – impossible de mettre à jour le cache');return;}
-  if(btn){btn.textContent='⏳';btn.disabled=true;btn.dataset.state='';}
+window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴 Hors ligne – les fonds distants peuvent être indisponibles');});
 
-  /* 1 — GeoJSON + fichiers app */
-  var files=[
-    'data/rail.geojson','data/pk.geojson','data/pk_hecto.geojson',
-    'data/oa.geojson','data/oh.geojson','data/pam.geojson','data/acces.geojson','data/oa_poly.geojson',
-    'data/bois.pmtiles','data/oa_poly.pmtiles',
-    'data/n2.geojson','data/old.geojson','data/mc.geojson','data/eco.geojson',
-    'index_v3.html','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png'
-  ];
-  var done=0;
-  for(var i=0;i<files.length;i+=4){
-    await Promise.all(files.slice(i,i+4).map(function(f){
-      return fetch(f).then(function(){done++;if(btn)btn.title='Données: '+done+'/'+files.length;}).catch(function(){done++;});
-    }));
-  }
 
-  /* 2 — Tuiles fond de carte CartoDB Voyager (zoom 5→11, corridor LGV SEA)
-     ~1000 tuiles, ~30 Mo dans le cache SW — 0 Mo dans l'APK */
-  var BB={x0:-1.1,x1:1.1,y0:44.4,y1:47.6};
-  function tX(lng,z){return Math.floor((lng+180)/360*Math.pow(2,z));}
-  function tY(lat,z){var r=lat*Math.PI/180;var n=Math.pow(2,z);return Math.floor(n*(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2);}
-  var tiles=[];
-  var TPL='https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-  for(var z=5;z<=11;z++){
-    var xa=tX(BB.x0,z),xb=tX(BB.x1,z),ya=tY(BB.y1,z),yb=tY(BB.y0,z);
-    for(var x=xa;x<=xb;x++)for(var y=ya;y<=yb;y++)
-      tiles.push(TPL.replace('{z}',z).replace('{x}',x).replace('{y}',y));
-  }
-  if(btn)btn.title='🗺 Tuiles: 0/'+tiles.length;
-  var td=0;
-  for(var i=0;i<tiles.length;i+=8){
-    await Promise.all(tiles.slice(i,i+8).map(function(u){
-      return fetch(u).then(function(){td++;if(btn)btn.title='🗺 Tuiles: '+td+'/'+tiles.length;}).catch(function(){td++;});
-    }));
-  }
+function _applyMobileViewport(){var h=(window.visualViewport&&window.visualViewport.height)?window.visualViewport.height:window.innerHeight;document.documentElement.style.setProperty('--app-vh',Math.round(h)+'px');try{map.resize();}catch(e){}}
+(function(){var standalone=window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches;document.body.classList.add(standalone?'standalone-mode':'browser-mode');_applyMobileViewport();if(window.visualViewport){window.visualViewport.addEventListener('resize',_applyMobileViewport);window.visualViewport.addEventListener('scroll',_applyMobileViewport);}window.addEventListener('orientationchange',function(){setTimeout(_applyMobileViewport,250);});window.addEventListener('resize',_applyMobileViewport);})();
 
-  try{localStorage.setItem('lgv_cached_v3','1');}catch(e){}
-  if(btn){btn.textContent='✅';btn.title='Carte offline ✓ (données + tuiles z5→11)';}
-  showNetToast('✅ Carte disponible hors-ligne (données + fond z5–11)');
-  setTimeout(function(){if(btn){btn.textContent='📶';btn.disabled=false;}updateNetBadge();},3000);
-}
-window.warmOfflineCache=warmOfflineCache;
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    updateNetBadge();
-    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
-    .then(function(reg){
-      updateNetBadge();
-      /* Contrôle ponctuel, sans setInterval et sans reload automatique. */
-      reg.update().catch(function(){});
-      reg.addEventListener('updatefound',function(){
-        var w=reg.installing;if(!w)return;
-        w.addEventListener('statechange',function(){
-          if(w.state==='installed' && navigator.serviceWorker.controller){
-            showNetToast('✅ Mise à jour prête. Elle sera appliquée au prochain démarrage.');
-          }
-        });
-      });
-    }).catch(function(e){console.warn('SW:',e);});
-    /* Ne jamais recharger ici : controllerchange peut sinon provoquer une boucle. */
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      updateNetBadge();
-    });
-  });
-}
+// Init badge
+_gpsUpdateBadge();
 </script>
 </body>
 </html>
