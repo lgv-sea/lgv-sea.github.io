@@ -18,10 +18,10 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow:hidden;max-width:100vw}
+html,body{overflow:hidden;max-width:100vw;width:100%;height:100%;height:100dvh}
 body{font-family:"Segoe UI",Arial,sans-serif;background:#1a1a2e;overscroll-behavior:none}
 button,a,[onclick]{touch-action:manipulation}
-#map{position:absolute;top:0;bottom:0;left:0;right:0;z-index:1}
+#map{position:fixed;inset:0;width:100%;height:100%;height:100dvh;z-index:1}
 #loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:white;padding:24px 36px;border-radius:12px;
   box-shadow:0 4px 24px rgba(0,0,0,.35);z-index:9999;text-align:center;
@@ -104,6 +104,7 @@ button,a,[onclick]{touch-action:manipulation}
   transition:transform .1s;position:relative}
 .fab:hover{transform:scale(1.1)}
 .fab-white{background:white}
+#offline-btn{display:none!important}
 #offline-btn[data-state="ready"]::after{content:"✓";position:absolute;bottom:-2px;right:-2px;
   background:#2e7d32;color:white;font-size:8px;width:12px;height:12px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -275,7 +276,7 @@ button,a,[onclick]{touch-action:manipulation}
 <div id="load-status"></div>
 <div id="fab-bar">
   <button id="install-btn" class="fab fab-white" style="display:none" title="Installer l'application" onclick="installApp()">📲</button>
-  <button id="offline-btn" class="fab fab-white fab-secondary" title="Mettre en cache hors-ligne" onclick="warmOfflineCache()">📶</button>
+  <button id="offline-btn" class="fab fab-white fab-secondary" title="Nettoyer les anciens caches" onclick="clearOldAppCaches()">📶</button>
   <button class="fab fab-white" title="Me localiser" onclick="locateMe()">📍</button>
   <button class="fab fab-white" title="PK / Accès / PAM le plus proche" onclick="findNearest()" style="background:#cc0000;color:white;font-size:14px;font-weight:700">PK?</button>
   <button class="fab fab-white" title="Vue d'ensemble LGV SEA" onclick="resetView()">🏠</button>
@@ -311,31 +312,32 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* ── Cache-bust automatique sur changement de version ── */
+/* ── Démarrage propre v3.68 : aucun cache applicatif créé. ── */
 (function(){
-  var V='v3.65';
+  var V='v3.68-firefox-a56-terrain';
+  try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
+  // Nettoyage unique des anciens Service Workers/caches issus des anciennes versions.
   try{
-    if(location.search.indexOf('reset=1')!==-1)return;
-    var s=localStorage.getItem('lgv_app_ver');
-    localStorage.setItem('lgv_app_ver',V);
-    if(s&&s!==V){location.replace(location.pathname+'?reset=1');}
+    if('serviceWorker' in navigator){
+      var already=false; try{already=sessionStorage.getItem('lgv_sw_cleanup_done')==='1';}catch(e){}
+      if(!already){
+        try{sessionStorage.setItem('lgv_sw_cleanup_done','1');}catch(e){}
+        Promise.all([
+          navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}),
+          ('caches' in window)?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}):Promise.resolve()
+        ]).then(function(){
+          try{localStorage.removeItem('lgv_map_pos');localStorage.removeItem('lgv_cached_v3');}catch(e){}
+        });
+      }
+    }
   }catch(e){}
 })();
-/* ── Force-reset via ?reset=1 : vide caches + SW + localStorage lgv_* ── */
-if(location.search.indexOf('reset=1')!==-1){
-  (async function(){
-    try{var keys=await caches.keys();await Promise.all(keys.map(function(k){return caches.delete(k);}));}catch(e){}
-    try{var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}catch(e){}
-    try{Object.keys(localStorage).filter(function(k){return k.startsWith('lgv_');}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
-    location.replace(location.pathname+'?_cb='+Date.now());
-  })();
-}
 </script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // CARTE LGV SEA  –  v3-ml  (MapLibre GL JS + PMTiles)
 // ═══════════════════════════════════════════════════════════
-var APP_VER = 'v3.65';
+var APP_VER = 'v3.68-firefox-a56-terrain';
 
 // ── Pré-chargement PK avant init map (source inline → rendu MapLibre GL v4 garanti) ──
 var _pkPrefetch=null, _pkMapReady=false;
@@ -345,7 +347,7 @@ fetch('data/pk.geojson?_v='+APP_VER)
   .catch(function(e){console.warn('PK prefetch:',e);_loading.pk=false;});
 
 // ── PMTiles protocol ──
-var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=365', document.baseURI).href;
+var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=368', document.baseURI).href;
 var _pmProtocol = new pmtiles.Protocol();
 var _pkMetricArchive = new pmtiles.PMTiles(_pkMetricBase);
 _pmProtocol.add(_pkMetricArchive);
@@ -461,14 +463,12 @@ var map = new maplibregl.Map({
     version: 8,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
-      'bm-sat': {type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri World Imagery',maxzoom:19},
-      'bm-sat-ref': {type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png','https://b.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png','https://c.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}@2x.png'],tileSize:512,attribution:'© CARTO',maxzoom:20},
-      'bm-osm': {type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap',maxzoom:19},
-      'bm-ign': {type:'raster',tiles:['https://wxs.ign.fr/decouverte/geoportail/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],tileSize:256,attribution:'© IGN Géoportail',maxzoom:18}
+      'bm-sat': {type:'raster',tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'],tileSize:256,attribution:'© Esri, sources OpenStreetMap et contributeurs',maxzoom:19,fadeDuration:0},
+      'bm-osm': {type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap',maxzoom:19,fadeDuration:0},
+      'bm-ign': {type:'raster',tiles:['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],tileSize:256,attribution:'© IGN – Géoplateforme',maxzoom:19,fadeDuration:0}
     },
     layers: [
       {id:'bm-sat',    type:'raster',source:'bm-sat',    layout:{visibility:'visible'}},
-      {id:'bm-sat-ref',type:'raster',source:'bm-sat-ref',layout:{visibility:'visible'}},
       {id:'bm-osm',   type:'raster',source:'bm-osm',    layout:{visibility:'none'}},
       {id:'bm-ign',   type:'raster',source:'bm-ign',    layout:{visibility:'none'}}
     ]
@@ -497,9 +497,6 @@ var _oaByCode={};
 var _loading={oa:true,oh:true,pam:true,acces:true,pk:true};
 var _pkHData=null,_pkHLoaded=false;
 var searchIndex=[];
-// Position sauvegardée au moment du chargement (avant tout moveend)
-var _savedPosAtLoad=null;
-try{_savedPosAtLoad=JSON.parse(localStorage.getItem('lgv_map_pos')||'null');}catch(e){}
 
 // ── Visibilité couches (état utilisateur) ──
 var _vis={rail:true,pk:true,pkhecto:true,pkmetric:true,oa:true,oh:true,pam:true,acces:true,
@@ -597,8 +594,7 @@ if(location.protocol==='file:'){
     /* Applique l'etat de visibilite par defaut de chaque couche (_vis) */
     Object.keys(LAYER_IDS).forEach(function(k){setVis(k,_vis[k]);});
     _initSearch();
-    _restoreMapPos();
-    /* Afficher état de chargement immédiatement */
+      /* Afficher état de chargement immédiatement */
     _updateLoadStatus();
     setTimeout(function(){
       if(!map.getLayer('pkm1-symbol'))showNetToast('⚠ PK métriques absents – recharger (F5)');
@@ -843,7 +839,7 @@ function _loadAllData(){
   // Rail – fitBounds sur la LGV si aucune position n'était sauvegardée
   loadJSON('rail').then(function(d){
     map.getSource('rail').setData(d);
-    var doFit=!_savedPosAtLoad;
+    var doFit=(_gpsWatch===null && !_gpsLast);
     if(doFit){
       try{
         var coords=[];
@@ -988,6 +984,7 @@ function _updateLoadStatus(){
     // Fallback : si le tracé LGV n'est pas dans le viewport, recentrer sur la LGV
     setTimeout(function(){
       if(!map.getLayer('rail-line'))return;
+      if(typeof _gpsWatch!=='undefined' && (_gpsWatch!==null||_gpsLast))return;
       var feats=map.queryRenderedFeatures({layers:['rail-line']});
       if(!feats.length){
         map.flyTo({center:[0.06,46.11],zoom:8,duration:800});
@@ -1073,8 +1070,6 @@ window.switchBM=function(name){
     if(map.getLayer('bm-'+id))map.setLayoutProperty('bm-'+id,'visibility',id===name?'visible':'none');
     var btn=document.getElementById('bm-'+id);if(btn)btn.classList.toggle('active',id===name);
   });
-  /* Labels Esri référence : visibles uniquement avec le fond satellite */
-  if(map.getLayer('bm-sat-ref'))map.setLayoutProperty('bm-sat-ref','visibility',name==='sat'?'visible':'none');
 };
 function _restoreLayerStates(){
   /* Persistance supprimée : toutes les couches démarrent visibles par défaut */
@@ -1093,80 +1088,243 @@ window._forceLayerOn=function(type){
 };
 
 // ══════════════════════════════════════════════════════════
-// LOCALISATION CONTINUE, SUIVI AUTOMATIQUE ET FILTRAGE GPS
+// LOCALISATION CONTINUE – Firefox Android / Samsung A56
 // ══════════════════════════════════════════════════════════
-function _isOnLGV(lat,lng){return lat>=44.3&&lat<=47.7&&lng>=-1.7&&lng<=1.3;}
-function _restoreMapPos(){
-  try{var p=JSON.parse(localStorage.getItem('lgv_map_pos')||'null');if(p&&p.lat&&_isOnLGV(p.lat,p.lng))map.jumpTo({center:[p.lng,p.lat],zoom:Math.min(p.zoom,12)});}catch(e){}
-  var t=null;map.on('moveend',function(){clearTimeout(t);t=setTimeout(function(){try{var c=map.getCenter();localStorage.setItem('lgv_map_pos',JSON.stringify({lat:c.lat,lng:c.lng,zoom:map.getZoom()}));}catch(e){}},400);});
+var _gpsWatch=null;
+var _gpsFollow=true;
+var _gpsLast=null;
+var _gpsLastWatchEvent=0;
+var _gpsLastRenderedAt=0;
+var _gpsAutoStarted=false;
+var _gpsWatchdog=null;
+var _gpsRefreshTimer=null;
+var _gpsCameraMoving=false;
+var _gpsSession=0;
+var _gpsFixCount=0;
+var _gpsSameCount=0;
+var _gpsLastToastAt=0;
+var GPS_MAX_ACCURACY=1000;
+var GPS_STALE_MS=10000;
+var GPS_REFRESH_MS=7000;
+
+function _isGpsValid(pos){
+  if(!pos||!pos.coords)return false;
+  var c=pos.coords;
+  return isFinite(+c.latitude)&&isFinite(+c.longitude)&&
+    +c.latitude>=-90&&+c.latitude<=90&&+c.longitude>=-180&&+c.longitude<=180&&
+    isFinite(+c.accuracy)&&+c.accuracy>0&&+c.accuracy<=GPS_MAX_ACCURACY;
 }
-var _gpsWatch=null,_gpsFollowing=true,_gpsBest=null,_gpsRecent=[],_gpsLastAccepted=null,_gpsAutoStarted=false;
+
+function _gpsPointFeature(p){
+  return {type:'Feature',properties:{accuracy:p.accuracy,age:p.age},
+    geometry:{type:'Point',coordinates:[p.lng,p.lat]}};
+}
+
 function _gpsCircle(lng,lat,r){
   var a=[],R=6378137,lr=lat*Math.PI/180;
-  for(var i=0;i<=64;i++){var q=i/64*Math.PI*2,dx=Math.cos(q)*r,dy=Math.sin(q)*r;a.push([lng+dx/(R*Math.cos(lr))*180/Math.PI,lat+dy/R*180/Math.PI]);}
-  return{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[a]}};
+  for(var i=0;i<=64;i++){
+    var q=i/64*Math.PI*2,dx=Math.cos(q)*r,dy=Math.sin(q)*r;
+    a.push([lng+dx/(R*Math.max(0.15,Math.cos(lr)))*180/Math.PI,lat+dy/R*180/Math.PI]);
+  }
+  return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[a]}};
 }
+
 function _ensureGpsLayers(){
   if(!map.getSource('_gpsCircle'))map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});
-  if(!map.getLayer('_gpsCircleFill'))map.addLayer({id:'_gpsCircleFill',type:'fill',source:'_gpsCircle',paint:{'fill-color':'#4285f4','fill-opacity':.14}});
-  if(!map.getLayer('_gpsCircleLine'))map.addLayer({id:'_gpsCircleLine',type:'line',source:'_gpsCircle',paint:{'line-color':'#4285f4','line-width':1.2,'line-opacity':.55}});
+  if(!map.getLayer('_gpsCircleFill'))map.addLayer({id:'_gpsCircleFill',type:'fill',source:'_gpsCircle',paint:{'fill-color':'#4285f4','fill-opacity':.12}});
+  if(!map.getLayer('_gpsCircleLine'))map.addLayer({id:'_gpsCircleLine',type:'line',source:'_gpsCircle',paint:{'line-color':'#4285f4','line-width':1.2,'line-opacity':.5}});
   if(!map.getSource('_gpsPoint'))map.addSource('_gpsPoint',{type:'geojson',data:emptyFC()});
-  if(!map.getLayer('_gpsHalo'))map.addLayer({id:'_gpsHalo',type:'circle',source:'_gpsPoint',paint:{'circle-radius':14,'circle-color':'#4285f4','circle-opacity':.18}});
-  if(!map.getLayer('_gpsDot'))map.addLayer({id:'_gpsDot',type:'circle',source:'_gpsPoint',paint:{'circle-radius':7,'circle-color':'#4285f4','circle-stroke-width':3,'circle-stroke-color':'#fff'}});
+  if(!map.getLayer('_gpsHalo'))map.addLayer({id:'_gpsHalo',type:'circle',source:'_gpsPoint',paint:{'circle-radius':15,'circle-color':'#4285f4','circle-opacity':.20}});
+  if(!map.getLayer('_gpsDot'))map.addLayer({id:'_gpsDot',type:'circle',source:'_gpsPoint',paint:{'circle-radius':7,'circle-color':'#4285f4','circle-opacity':1,'circle-stroke-width':3,'circle-stroke-color':'#fff'}});
 }
-function _gpsMedian(arr,key){var v=arr.map(function(x){return x[key];}).sort(function(a,b){return a-b;}),m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;}
-function _gpsAccept(pos){
-  var c=pos.coords,lat=+c.latitude,lng=+c.longitude,acc=+c.accuracy,ts=+pos.timestamp||Date.now();
-  if(!isFinite(lat)||!isFinite(lng)||!isFinite(acc)||acc<=0||acc>2000||Date.now()-ts>15000)return null;
-  var p={lat:lat,lng:lng,accuracy:acc,timestamp:ts,speed:isFinite(+c.speed)?+c.speed:null,heading:isFinite(+c.heading)?+c.heading:null};
-  if(_gpsLastAccepted){
-    var dt=Math.max(1,(ts-_gpsLastAccepted.timestamp)/1000),d=_haversine(_gpsLastAccepted.lat,_gpsLastAccepted.lng,lat,lng);
-    var maxMove=Math.max(80,acc*3,_gpsLastAccepted.accuracy*3,(p.speed||0)*dt+60);
-    if(d>maxMove&&acc>=_gpsLastAccepted.accuracy)return null;
-  }
-  _gpsRecent.push(p);if(_gpsRecent.length>5)_gpsRecent.shift();
-  // Médiane robuste, puis priorité à la meilleure mesure récente.
-  var filtered=_gpsRecent.filter(function(x){return x.accuracy<=Math.max(100,acc*2);});
-  p.lat=_gpsMedian(filtered,'lat');p.lng=_gpsMedian(filtered,'lng');
-  _gpsLastAccepted=p;if(!_gpsBest||p.accuracy<_gpsBest.accuracy)_gpsBest=p;
-  return p;
+
+function _gpsSetStatus(msg,force){
+  var now=Date.now();
+  if(!force&&now-_gpsLastToastAt<2500)return;
+  _gpsLastToastAt=now;showNetToast(msg);
 }
-function _drawGps(p){
+
+function _gpsUpdateBadge(extra){
+  var b=document.getElementById('ver-badge');
+  if(!b)return;
+  var net=navigator.onLine?'🟢':'🔴';
+  var gps=_gpsLast?'GPS ±'+Math.round(_gpsLast.accuracy)+'m':'GPS…';
+  b.textContent=APP_VER+' '+net+' · '+gps+(extra?' · '+extra:'');
+}
+
+function _gpsCameraTo(p,initial){
+  if(!_gpsFollow||!p||_gpsCameraMoving)return;
+  var center=[p.lng,p.lat];
+  var options={center:center,duration:350,essential:true};
+  if(initial)options.zoom=Math.max(18,map.getZoom());
+  _gpsCameraMoving=true;
+  try{
+    map.easeTo(options);
+    setTimeout(function(){_gpsCameraMoving=false;},450);
+  }catch(e){_gpsCameraMoving=false;}
+}
+
+function _gpsRender(pos,source){
+  if(!_isGpsValid(pos))return false;
+  var c=pos.coords;
+  var ts=isFinite(+pos.timestamp)&&+pos.timestamp>0?+pos.timestamp:Date.now();
+  var age=Math.max(0,Date.now()-ts);
+  var lat=+c.latitude,lng=+c.longitude,acc=+c.accuracy;
+  var same=_gpsLast&&_haversine(_gpsLast.lat,_gpsLast.lng,lat,lng)<0.5;
+  if(same)_gpsSameCount++;else _gpsSameCount=0;
+  var p={lat:lat,lng:lng,accuracy:acc,timestamp:ts,age:age,
+    speed:isFinite(+c.speed)?+c.speed:null,
+    heading:isFinite(+c.heading)?+c.heading:null,
+    source:source||'watch'};
+  _gpsLast=p;_gpsFixCount++;_gpsLastWatchEvent=Date.now();_gpsLastRenderedAt=Date.now();
   _ensureGpsLayers();
-  map.getSource('_gpsPoint').setData({type:'Feature',properties:{accuracy:p.accuracy},geometry:{type:'Point',coordinates:[p.lng,p.lat]}});
-  map.getSource('_gpsCircle').setData(_gpsCircle(p.lng,p.lat,Math.max(3,p.accuracy)));
-  if(_gpsFollowing){
-    var z=p.accuracy<=15?19:p.accuracy<=30?18:p.accuracy<=60?17:p.accuracy<=120?16:15;
-    map.easeTo({center:[p.lng,p.lat],zoom:Math.max(map.getZoom(),z),duration:650,essential:true});
+  var ps=map.getSource('_gpsPoint'),cs=map.getSource('_gpsCircle');
+  if(ps)ps.setData(_gpsPointFeature(p));
+  if(cs)cs.setData(_gpsCircle(lng,lat,Math.max(3,acc)));
+  var initial=_gpsFixCount===1;
+  _gpsCameraTo(p,initial);
+  _gpsUpdateBadge();
+  return true;
+}
+
+function _gpsErrorMessage(e){
+  if(!e)return 'erreur GPS inconnue';
+  if(e.code===1)return 'autorisation refusée';
+  if(e.code===2)return 'position indisponible';
+  if(e.code===3)return 'délai GPS dépassé';
+  return e.message||'erreur GPS';
+}
+
+function _gpsClearTimers(){
+  if(_gpsWatchdog){clearInterval(_gpsWatchdog);_gpsWatchdog=null;}
+  if(_gpsRefreshTimer){clearInterval(_gpsRefreshTimer);_gpsRefreshTimer=null;}
+}
+
+function _gpsStopWatch(){
+  if(_gpsWatch!==null){try{navigator.geolocation.clearWatch(_gpsWatch);}catch(e){} _gpsWatch=null;}
+}
+
+function _gpsStartRefreshProbe(session){
+  if(_gpsRefreshTimer||!navigator.geolocation)return;
+  var probe=function(){
+    if(session!==_gpsSession||_gpsWatch===null)return;
+    if(document.hidden)return;
+    var silent=Date.now()-_gpsLastWatchEvent;
+    if(silent<GPS_REFRESH_MS)return;
+    // Firefox Android peut rester silencieux avec watchPosition ; cette requête sert uniquement à réveiller le provider.
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(session!==_gpsSession)return;
+      if(_isGpsValid(pos)){
+        var age=Date.now()-(+pos.timestamp||Date.now());
+        if(age<30000||!_gpsLast||_haversine(_gpsLast.lat,_gpsLast.lng,+pos.coords.latitude,+pos.coords.longitude)>1){
+          _gpsRender(pos,'probe');
+        }
+      }
+    },function(e){
+      if(e&&e.code===1)_gpsSetStatus('📍 Autorisation de localisation refusée',true);
+    },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+  };
+  setTimeout(probe,1200);
+  _gpsRefreshTimer=setInterval(probe,2000);
+}
+
+function _gpsRestart(reason){
+  if(_gpsWatch===null||!navigator.geolocation)return;
+  var session=++_gpsSession;
+  _gpsStopWatch();
+  if(_gpsRefreshTimer){clearInterval(_gpsRefreshTimer);_gpsRefreshTimer=null;}
+  _gpsSetStatus('📡 Réactivation du GPS…');
+  setTimeout(function(){
+    if(session!==_gpsSession)return;
+    _gpsCreateWatch(session);
+  },300);
+}
+
+function _gpsCreateWatch(session){
+  if(!navigator.geolocation)return;
+  _gpsLastWatchEvent=Date.now();
+  try{
+    _gpsWatch=navigator.geolocation.watchPosition(function(pos){
+      if(session!==_gpsSession)return;
+      _gpsLastWatchEvent=Date.now();
+      _gpsRender(pos,'watch');
+      if(_gpsFixCount===1)_gpsSetStatus('📍 Position trouvée · suivi temps réel actif',true);
+    },function(e){
+      if(session!==_gpsSession)return;
+      if(e&&e.code===1){_gpsSetStatus('📍 Localisation refusée : autorise « Position précise » pour Firefox',true);return;}
+      _gpsSetStatus('📡 '+_gpsErrorMessage(e));
+    },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+  }catch(e){
+    _gpsSetStatus('📍 GPS : '+e.message,true);
+    return;
   }
+  _gpsStartRefreshProbe(session);
 }
-function startLiveLocation(follow){
-  if(!navigator.geolocation){showNetToast('📍 Géolocalisation indisponible');return;}
-  if(typeof follow==='boolean')_gpsFollowing=follow;
-  if(_gpsWatch!==null)return;
-  showNetToast('📡 Suivi GPS actif');
-  _gpsWatch=navigator.geolocation.watchPosition(function(pos){
-    var p=_gpsAccept(pos);if(!p)return;_drawGps(p);
-    showNetToast('📍 GPS ±'+Math.round(p.accuracy)+' m'+(_gpsFollowing?' · suivi actif':''));
-  },function(e){
-    if(e.code===1){stopLiveLocation();showNetToast('📍 Autorisation de localisation refusée');}
-    else if(e.code===2)showNetToast('📍 Signal GPS indisponible');
-  },{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+
+function _gpsStart(follow){
+  var localHost=location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.hostname==='::1';
+  if(!window.isSecureContext&&!localHost){_gpsSetStatus("🔒 GPS Firefox : ouvre l’application en HTTPS",true);return;}
+  if(!navigator.geolocation){_gpsSetStatus('📍 Géolocalisation indisponible',true);return;}
+  if(typeof follow==='boolean')_gpsFollow=follow;
+  _gpsFollow=true;
+  _gpsSession++;
+  _gpsStopWatch();
+  _gpsClearTimers();
+  _gpsLastWatchEvent=Date.now();
+  _gpsFixCount=0;
+  _gpsSameCount=0;
+  _gpsLast=null;
+  try{
+    if(map.getSource('_gpsPoint'))map.getSource('_gpsPoint').setData(emptyFC());
+    if(map.getSource('_gpsCircle'))map.getSource('_gpsCircle').setData(emptyFC());
+  }catch(e){}
+  _gpsSetStatus('📡 Recherche de votre position…',true);
+  var session=_gpsSession;
+  _gpsCreateWatch(session);
+  _gpsWatchdog=setInterval(function(){
+    if(document.hidden)return;
+    if(_gpsWatch===null)return;
+    if(Date.now()-_gpsLastWatchEvent>GPS_STALE_MS)_gpsRestart('watchdog');
+  },3000);
 }
-function stopLiveLocation(){if(_gpsWatch!==null){navigator.geolocation.clearWatch(_gpsWatch);_gpsWatch=null;}showNetToast('📍 Suivi GPS arrêté');}
+
+function startLiveLocation(follow){_gpsStart(typeof follow==='boolean'?follow:true);}
+function stopLiveLocation(){_gpsSession++;_gpsStopWatch();_gpsClearTimers();_gpsSetStatus('📍 Suivi GPS arrêté',true);}
+
 function locateMe(){
-  if(_gpsWatch===null){_gpsFollowing=true;startLiveLocation(true);}
-  else{_gpsFollowing=!_gpsFollowing;if(_gpsFollowing&&_gpsLastAccepted)_drawGps(_gpsLastAccepted);showNetToast(_gpsFollowing?'📍 Recentrage automatique actif':'📍 Point suivi, carte libre');}
+  // Un appui signifie toujours : me localiser et recentrer. Jamais de bascule vers « carte libre ».
+  _gpsFollow=true;
+  if(_gpsWatch===null){_gpsStart(true);return;}
+  if(_gpsLast){_gpsCameraTo(_gpsLast,true);_gpsSetStatus('📍 Recentrage automatique actif',true);}
+  else _gpsSetStatus('📡 Recherche de votre position…',true);
 }
-window.locateMe=locateMe;window.startLiveLocation=startLiveLocation;window.stopLiveLocation=stopLiveLocation;
-// L'utilisateur peut déplacer la carte sans arrêter le point bleu.
-map.on('dragstart',function(){if(_gpsWatch!==null)_gpsFollowing=false;});
-// Démarrage automatique sur mobile seulement si l'autorisation a déjà été accordée.
+
+window.locateMe=locateMe;
+window.startLiveLocation=startLiveLocation;
+window.stopLiveLocation=stopLiveLocation;
+
+function _gpsUserInteracted(){if(!_gpsCameraMoving)_gpsFollow=false;}
+map.on('dragstart',_gpsUserInteracted);
+map.on('zoomstart',_gpsUserInteracted);
+map.on('rotatestart',_gpsUserInteracted);
+
+// Quand l'utilisateur revient sur l'écran, reprendre immédiatement le watcher si nécessaire.
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden){
+    if(_gpsWatch===null)_gpsStart(true);
+    else if(Date.now()-_gpsLastWatchEvent>GPS_STALE_MS)_gpsRestart('visibility');
+  }
+});
+window.addEventListener('pageshow',function(){
+  if(_gpsWatch===null)_gpsStart(true);
+  else if(Date.now()-_gpsLastWatchEvent>GPS_STALE_MS)_gpsRestart('pageshow');
+});
+
 map.once('load',function(){
-  if(!navigator.geolocation||_gpsAutoStarted)return;_gpsAutoStarted=true;
-  var mobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-  if(!mobile)return;
-  if(navigator.permissions&&navigator.permissions.query){navigator.permissions.query({name:'geolocation'}).then(function(r){if(r.state==='granted')startLiveLocation(true);}).catch(function(){});}
+  if(_gpsAutoStarted)return;
+  _gpsAutoStarted=true;
+  var mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||matchMedia('(pointer:coarse)').matches;
+  if(mobile)_gpsStart(true);
 });
 
 // ══════════════════════════════════════════════════════════
@@ -1918,12 +2076,14 @@ function confirmKMLDirect(geojson,fname){
 }
 
 // ══════════════════════════════════════════════════════════
-// PWA + RÉSEAU
+// PWA / RACCOURCI ÉCRAN D'ACCUEIL – sans cache applicatif
 // ══════════════════════════════════════════════════════════
 var _installPrompt=null;
 (function(){
   var standalone=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone;
+  var mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   if(standalone){var b=document.getElementById('install-btn');if(b)b.style.display='none';}
+  else if(mobile){var b2=document.getElementById('install-btn');if(b2)b2.style.display='flex';}
 })();
 window.addEventListener('beforeinstallprompt',function(e){
   e.preventDefault();_installPrompt=e;
@@ -1935,9 +2095,15 @@ window.addEventListener('appinstalled',function(){
 });
 function installApp(){
   if(_installPrompt){_installPrompt.prompt();_installPrompt.userChoice.then(function(){_installPrompt=null;});return;}
-  alert('📲 Installer :\n\n✅ Android Chrome : ⋮ → "Ajouter à l\'écran d\'accueil"\n🍎 Safari iOS : 🔗 → "Sur l\'écran d\'accueil"\n💻 Chrome/Edge PC : icône dans la barre d\'adresse');
+  alert('📲 Écran d\'accueil :\n\nFirefox Android : menu ⋮ → « Ajouter à l\'écran d\'accueil » / « Ajouter aux raccourcis ».\n\nChrome Android : menu ⋮ → « Ajouter à l\'écran d\'accueil » ou « Installer l\'application ».');
 }
 window.installApp=installApp;
+function clearOldAppCaches(){
+  try{if('caches' in window)caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));});}catch(e){}
+  try{localStorage.removeItem('lgv_cached_v3');}catch(e){}
+  showNetToast('♻️ Anciens caches supprimés');
+}
+window.clearOldAppCaches=clearOldAppCaches;
 var _netToastTimer=null;
 function showNetToast(msg){
   var t=document.getElementById('net-toast');if(!t)return;
@@ -1945,80 +2111,10 @@ function showNetToast(msg){
   clearTimeout(_netToastTimer);
   _netToastTimer=setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.style.display='none';},300);},3000);
 }
-function updateNetBadge(){
-  var b=document.getElementById('ver-badge');if(b)b.textContent=APP_VER+(navigator.onLine?' 🟢':' 🔴');
-  var ob=document.getElementById('offline-btn');
-  if(ob){var cached=localStorage.getItem('lgv_cached_v3');
-    ob.dataset.state=!navigator.onLine?(cached?'ready':'offline'):(cached?'ready':'');}
-}
+function updateNetBadge(){_gpsUpdateBadge();}
 window.addEventListener('online',function(){updateNetBadge();showNetToast('🟢 En ligne');});
-window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴 Hors ligne – mode cache actif');});
-async function warmOfflineCache(){
-  var btn=document.getElementById('offline-btn');
-  if(!navigator.onLine){showNetToast('🔴 Hors ligne – impossible de mettre à jour le cache');return;}
-  if(btn){btn.textContent='⏳';btn.disabled=true;btn.dataset.state='';}
-
-  /* 1 — GeoJSON + fichiers app */
-  var files=[
-    'data/rail.geojson','data/pk.geojson','data/pk_hecto.geojson',
-    'data/oa.geojson','data/oh.geojson','data/pam.geojson','data/acces.geojson','data/oa_poly.geojson',
-    'data/bois.pmtiles','data/oa_poly.pmtiles',
-    'data/n2.geojson','data/old.geojson','data/mc.geojson','data/eco.geojson',
-    'index_v3.html','sw.js','manifest.json','icons/icon-192.png','icons/icon-512.png'
-  ];
-  var done=0;
-  for(var i=0;i<files.length;i+=4){
-    await Promise.all(files.slice(i,i+4).map(function(f){
-      return fetch(f).then(function(){done++;if(btn)btn.title='Données: '+done+'/'+files.length;}).catch(function(){done++;});
-    }));
-  }
-
-  /* 2 — Tuiles fond de carte CartoDB Voyager (zoom 5→11, corridor LGV SEA)
-     ~1000 tuiles, ~30 Mo dans le cache SW — 0 Mo dans l'APK */
-  var BB={x0:-1.1,x1:1.1,y0:44.4,y1:47.6};
-  function tX(lng,z){return Math.floor((lng+180)/360*Math.pow(2,z));}
-  function tY(lat,z){var r=lat*Math.PI/180;var n=Math.pow(2,z);return Math.floor(n*(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2);}
-  var tiles=[];
-  var TPL='https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-  for(var z=5;z<=11;z++){
-    var xa=tX(BB.x0,z),xb=tX(BB.x1,z),ya=tY(BB.y1,z),yb=tY(BB.y0,z);
-    for(var x=xa;x<=xb;x++)for(var y=ya;y<=yb;y++)
-      tiles.push(TPL.replace('{z}',z).replace('{x}',x).replace('{y}',y));
-  }
-  if(btn)btn.title='🗺 Tuiles: 0/'+tiles.length;
-  var td=0;
-  for(var i=0;i<tiles.length;i+=8){
-    await Promise.all(tiles.slice(i,i+8).map(function(u){
-      return fetch(u).then(function(){td++;if(btn)btn.title='🗺 Tuiles: '+td+'/'+tiles.length;}).catch(function(){td++;});
-    }));
-  }
-
-  try{localStorage.setItem('lgv_cached_v3','1');}catch(e){}
-  if(btn){btn.textContent='✅';btn.title='Carte offline ✓ (données + tuiles z5→11)';}
-  showNetToast('✅ Carte disponible hors-ligne (données + fond z5–11)');
-  setTimeout(function(){if(btn){btn.textContent='📶';btn.disabled=false;}updateNetBadge();},3000);
-}
-window.warmOfflineCache=warmOfflineCache;
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    updateNetBadge();
-    var reloading=false;
-    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
-    .then(function(reg){
-      updateNetBadge();reg.update();
-      reg.addEventListener('updatefound',function(){
-        var w=reg.installing;if(!w)return;
-        w.addEventListener('statechange',function(){
-          if(w.state==='installed'||w.state==='activating')w.postMessage({type:'SKIP_WAITING'});
-        });
-      });
-      setInterval(function(){reg.update();},10*60*1000);
-    }).catch(function(e){console.warn('SW:',e);});
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if(!reloading){reloading=true;window.location.reload();}
-    });
-  });
-}
+window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴 Hors ligne – les fonds distants peuvent être indisponibles');});
+// Aucun Service Worker et aucune routine de pré-téléchargement/cache ne sont enregistrés par cette version.
 </script>
 </body>
 </html>
