@@ -320,7 +320,7 @@ button,input,select,a{-webkit-tap-highlight-color:transparent}
 <script>
 /* v3.80 : version complète terrain Samsung A56 */
 (function(){
-  var V='v3.84-live-gps-terrain';
+  var V='v3.90-live-gps-blue-dot';
   try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){
@@ -343,7 +343,7 @@ window.addEventListener('resize',updateAppViewportHeight,{passive:true});
 window.addEventListener('orientationchange',function(){setTimeout(updateAppViewportHeight,150);setTimeout(updateAppViewportHeight,500);});
 if(window.visualViewport)window.visualViewport.addEventListener('resize',updateAppViewportHeight,{passive:true});
 
-var APP_VER = 'v3.84-live-gps-terrain';
+var APP_VER = 'v3.90-live-gps-blue-dot';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -1010,52 +1010,58 @@ window._forceLayerOn=function(type){
 
 // ══════════════════════════════════════════════════════════
 /*
- GPS v3.84 – LIVE TRACKING TERRAIN
+ GPS v3.90 – LIVE TRACKING TERRAIN / BLUE DOT ENGINE
 
- Principe :
- 1. UN SEUL navigator.geolocation.watchPosition().
- 2. enableHighAccuracy:true + maximumAge:0 + timeout:10000.
- 3. Le point bleu reçoit chaque nouveau fix immédiatement.
- 4. Aucun polling getCurrentPosition en parallèle.
- 5. Aucun second watcher pour "PK?" : ce bouton réutilise le suivi.
- 6. Le recentrage caméra est indépendant du calcul PK.
- 7. Les fixes anciens/dupliqués ne peuvent pas faire reculer le point.
- 8. Un déplacement manuel de la carte désactive uniquement le FOLLOW,
-    pas le GPS. Le bouton "Recentrer" réactive le FOLLOW.
+ Objectif : comportement type Google Maps / Field Maps côté navigateur.
+
+ IMPORTANT : en HTML/Firefox Android, on ne peut pas accéder directement au
+ Fused Location Provider Android utilisé par une application native. Le meilleur
+ moteur disponible ici est donc UN SEUL navigator.geolocation.watchPosition()
+ avec haute précision, sans polling concurrent.
+
+ 1. Un seul watchPosition pendant toute la session.
+ 2. enableHighAccuracy=true, maximumAge=0, timeout=10000.
+ 3. Le FIX GPS brut est accepté puis affiché immédiatement.
+ 4. Le point bleu est un DOM Marker MapLibre -> setLngLat() direct.
+ 5. Le cercle d'incertitude reste séparé du point bleu.
+ 6. Caméra / FOLLOW totalement séparés du moteur GPS.
+ 7. PK / Accès / PAM réutilisent le dernier fix et ne démarrent jamais un
+    second moteur de localisation.
+ 8. Si Firefox suspend le watcher en arrière-plan et que l'ID disparaît,
+    un seul watcher est recréé au retour au premier plan.
 */
 window._gps = {
-  active: false,
-  following: true,
-  mode: null,                 // 'watch' | null
-  watchId: null,
-  last: null,                 // dernier fix GPS accepté
-  lastFixAt: 0,               // heure de réception navigateur
-  lastGpsTimestamp: 0,        // timestamp de mesure GPS
-  lastCamera: null,
-  session: 0,
-  permission: 'unknown',
-  permStatus: null,
-  _lastToastAt: 0,
-  waiters: []
+  active:false,
+  following:true,
+  mode:null,
+  watchId:null,
+  last:null,
+  lastFixAt:0,
+  lastGpsTimestamp:0,
+  lastCamera:null,
+  session:0,
+  permission:'unknown',
+  waiters:[],
+  _lastToastAt:0,
+  _marker:null,
+  _dotEl:null,
+  _resumeTimer:null,
+  _orientationAttached:false,
+  _heading:null
 };
 
 var GPS_WATCH_TIMEOUT_MS = 10000;
-var GPS_STALE_MS = 12000;
 var GPS_MAX_ACCURACY = 3000;
-var GPS_CAMERA_MIN_MOVE_M = 2;
-var GPS_CAMERA_DURATION_MS = 220;
+var GPS_MAX_TIMESTAMP_AGE_MS = 20000;
+var GPS_CAMERA_MIN_MOVE_M = 1.5;
+var GPS_CAMERA_DURATION_MS = 160;
 
 function _gpsIsActive(){return window._gps.active;}
 
 function _gpsDotFeature(p){
   return {
     type:'Feature',
-    properties:{
-      accuracy:p.accuracy,
-      speed:p.speed,
-      heading:p.heading,
-      timestamp:p.timestamp
-    },
+    properties:{accuracy:p.accuracy,speed:p.speed,heading:p.heading,timestamp:p.timestamp},
     geometry:{type:'Point',coordinates:[p.lng,p.lat]}
   };
 }
@@ -1069,122 +1075,129 @@ function _gpsCirclePoly(lng,lat,r){
       lat+dy/R*180/Math.PI
     ]);
   }
-  return {
-    type:'Feature',
-    properties:{},
-    geometry:{type:'Polygon',coordinates:[a]}
-  };
+  return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[a]}};
+}
+
+function _createBlueDotElement(){
+  var el=document.createElement('div');
+  el.className='lgv-blue-dot';
+  el.setAttribute('aria-label','Position GPS');
+  el.style.cssText=[
+    'width:24px',
+    'height:24px',
+    'border-radius:50%',
+    'background:#4285f4',
+    'border:3px solid #fff',
+    'box-shadow:0 1px 5px rgba(0,0,0,.45),0 0 0 7px rgba(66,133,244,.16)',
+    'transform:translate(-50%,-50%)',
+    'will-change:transform,left,top',
+    'touch-action:none',
+    'pointer-events:none'
+  ].join(';');
+  return el;
 }
 
 function _ensureGpsLayers(){
+  /*
+   * Le cercle reste en GeoJSON car c'est une surface géographique.
+   * Le point bleu, lui, est volontairement un DOM Marker : sa position est
+   * modifiée directement par marker.setLngLat() à chaque fix.
+   */
   if(!map.getSource('_gpsCircle'))
     map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});
 
   if(!map.getLayer('_gpsCircleFill'))
     map.addLayer({
-      id:'_gpsCircleFill',
-      type:'fill',
-      source:'_gpsCircle',
+      id:'_gpsCircleFill',type:'fill',source:'_gpsCircle',
       paint:{'fill-color':'#4285f4','fill-opacity':.12}
     });
 
   if(!map.getLayer('_gpsCircleLine'))
     map.addLayer({
-      id:'_gpsCircleLine',
-      type:'line',
-      source:'_gpsCircle',
+      id:'_gpsCircleLine',type:'line',source:'_gpsCircle',
       paint:{'line-color':'#4285f4','line-width':1.2,'line-opacity':.5}
     });
 
-  if(!map.getSource('_gpsPoint'))
-    map.addSource('_gpsPoint',{type:'geojson',data:emptyFC()});
-
-  if(!map.getLayer('_gpsHalo'))
-    map.addLayer({
-      id:'_gpsHalo',
-      type:'circle',
-      source:'_gpsPoint',
-      paint:{
-        'circle-radius':15,
-        'circle-color':'#4285f4',
-        'circle-opacity':.20
-      }
-    });
-
-  if(!map.getLayer('_gpsDot'))
-    map.addLayer({
-      id:'_gpsDot',
-      type:'circle',
-      source:'_gpsPoint',
-      paint:{
-        'circle-radius':7,
-        'circle-color':'#4285f4',
-        'circle-opacity':1,
-        'circle-stroke-width':3,
-        'circle-stroke-color':'#fff'
-      }
-    });
+  if(!window._gps._marker){
+    var el=_createBlueDotElement();
+    window._gps._dotEl=el;
+    window._gps._marker=new maplibregl.Marker({
+      element:el,
+      anchor:'center'
+    })
+    .setLngLat([0,0])
+    .addTo(map);
+    el.style.visibility='hidden';
+  }
 }
 
 function _gpsSetData(p){
   _ensureGpsLayers();
 
-  var ps=map.getSource('_gpsPoint');
-  var cs=map.getSource('_gpsCircle');
+  var g=window._gps;
 
-  /*
-   * Important terrain rule :
-   * le point bleu est mis à jour indépendamment du recentrage et
-   * indépendamment du calcul PK / Accès / PAM.
-   */
-  if(ps)ps.setData(_gpsDotFeature(p));
-  if(cs)cs.setData(_gpsCirclePoly(
-    p.lng,p.lat,Math.max(3,p.accuracy)
-  ));
+  /* Mise à jour DIRECTE du point bleu, sans GeoJSON round-trip. */
+  if(g._marker){
+    g._marker.setLngLat([p.lng,p.lat]);
+    if(g._dotEl)g._dotEl.style.visibility='visible';
+  }
+
+  var cs=map.getSource('_gpsCircle');
+  if(cs){
+    cs.setData(_gpsCirclePoly(
+      p.lng,p.lat,Math.max(3,p.accuracy)
+    ));
+  }
 }
 
-function _gpsRecenter(p, initial){
+function _gpsHideMarker(){
+  var g=window._gps;
+  if(g._dotEl)g._dotEl.style.visibility='hidden';
+}
+
+function _gpsRemoveMarker(){
+  var g=window._gps;
+  try{if(g._marker)g._marker.remove();}catch(e){}
+  g._marker=null;
+  g._dotEl=null;
+}
+
+function _gpsRecenter(p,initial){
   var g=window._gps;
   if(!g.active || !g.following || !p)return;
 
-  var cameraMove=true;
   if(g.lastCamera){
-    var cameraDist=_haversine(
+    var d=_haversine(
       g.lastCamera.lat,g.lastCamera.lng,
       p.lat,p.lng
     );
-    cameraMove=cameraDist>=GPS_CAMERA_MIN_MOVE_M;
+    if(!initial && d<GPS_CAMERA_MIN_MOVE_M)return;
   }
 
-  if(!initial && !cameraMove)return;
+  var zoom=map.getZoom();
+  if(initial && zoom<17)zoom=18;
 
   /*
-   * Google Maps / Field Maps style :
-   * - on garde le zoom courant après le premier centrage ;
-   * - on déplace doucement la caméra ;
-   * - on ne jumpTo jamais la carte à chaque fix.
+   * Caméra indépendante du point bleu.
+   * Durée courte pour ne jamais accumuler des animations lorsque le GPS
+   * envoie plusieurs fixes rapprochés.
    */
-  var zoom=map.getZoom();
-  if(initial){
-    zoom=Math.max(18,zoom);
-  }
-
-  var opts={
-    center:[p.lng,p.lat],
-    duration:initial?500:GPS_CAMERA_DURATION_MS,
-    essential:true,
-    zoom:zoom
-  };
-
   try{
-    map.easeTo(opts);
+    map.easeTo({
+      center:[p.lng,p.lat],
+      zoom:zoom,
+      duration:initial?350:GPS_CAMERA_DURATION_MS,
+      essential:true,
+      easing:function(t){return t}
+    });
     g.lastCamera={lat:p.lat,lng:p.lng};
-  }catch(e){}
+  }catch(e){
+    try{map.setCenter([p.lng,p.lat]);}catch(_e){}
+  }
 }
 
-function _gpsSetStatus(msg, force){
-  var g=window._gps;
-  var now=Date.now();
+function _gpsSetStatus(msg,force){
+  var g=window._gps,now=Date.now();
   if(!force && now-g._lastToastAt<2500)return;
   g._lastToastAt=now;
   if(typeof showNetToast==='function')showNetToast(msg);
@@ -1193,28 +1206,21 @@ function _gpsSetStatus(msg, force){
 function _gpsUpdateBadge(){
   var g=window._gps;
   var b=document.getElementById('ver-badge');
-
   if(b){
-    var net=navigator.onLine?'🟢':'🔴';
-    var gpsState='GPS off';
-
+    var net=navigator.onLine?'🟢':'🔴',gpsState='GPS off';
     if(g.active){
       if(g.last){
         var age=Math.max(0,Date.now()-g.lastFixAt);
         gpsState='GPS ±'+Math.round(g.last.accuracy)+'m';
         if(age>=2000)gpsState+=' · '+Math.round(age/1000)+'s';
-      }else{
-        gpsState='GPS recherche…';
-      }
+      }else gpsState='GPS recherche…';
     }
-
     b.textContent=APP_VER+' '+net+' · '+gpsState;
   }
-
   var fab=document.getElementById('gps-fab');
   if(fab){
-    fab.classList.toggle('gps-active',g.active && !!g.last);
-    fab.classList.toggle('gps-searching',g.active && !g.last);
+    fab.classList.toggle('gps-active',g.active&&!!g.last);
+    fab.classList.toggle('gps-searching',g.active&&!g.last);
   }
 }
 
@@ -1222,148 +1228,90 @@ function _gpsHideRecenterBanner(){
   var el=document.getElementById('gps-recenter-banner');
   if(el)el.style.display='none';
 }
-
 function _gpsShowRecenterBanner(){
   var el=document.getElementById('gps-recenter-banner');
-  if(!el)return;
-  if(!window._gps.active)return;
-  el.style.display='flex';
+  if(el && window._gps.active)el.style.display='flex';
 }
 
 function _gpsResolveWaiters(p){
   var g=window._gps,keep=[];
-
   (g.waiters||[]).forEach(function(w){
-    if(!p){
-      keep.push(w);
-      return;
-    }
-
-    var fresh=(Date.now()-p._receivedAt)<=w.freshMs;
-    var accurate=(!w.maxAccuracy || p.accuracy<=w.maxAccuracy);
-
-    if(fresh && accurate){
-      clearTimeout(w.timer);
-      w.resolve(p);
-    }else{
-      keep.push(w);
-    }
+    if(!p){keep.push(w);return;}
+    var fresh=Date.now()-p._receivedAt<=w.freshMs;
+    var accurate=!w.maxAccuracy || p.accuracy<=w.maxAccuracy;
+    if(fresh&&accurate){
+      clearTimeout(w.timer);w.resolve(p);
+    }else keep.push(w);
   });
-
   g.waiters=keep;
 }
 
 function _gpsRejectWaiters(err){
-  var g=window._gps;
-  var list=(g.waiters||[]).slice();
-  g.waiters=[];
-
-  list.forEach(function(w){
-    clearTimeout(w.timer);
-    w.reject(err);
-  });
+  var g=window._gps,list=(g.waiters||[]).slice();g.waiters=[];
+  list.forEach(function(w){clearTimeout(w.timer);w.reject(err);});
 }
 
 function _gpsWaitForFix(opts){
   opts=opts||{};
-
-  var freshMs=Number(opts.freshMs);
-  if(!isFinite(freshMs) || freshMs<=0)freshMs=3000;
-
-  var maxAccuracy=Number(opts.maxAccuracy);
-  if(!isFinite(maxAccuracy) || maxAccuracy<=0)maxAccuracy=100;
-
-  var timeout=Number(opts.timeout);
-  if(!isFinite(timeout) || timeout<=0)timeout=10000;
-
+  var freshMs=Number(opts.freshMs);if(!isFinite(freshMs)||freshMs<=0)freshMs=3000;
+  var maxAccuracy=Number(opts.maxAccuracy);if(!isFinite(maxAccuracy)||maxAccuracy<=0)maxAccuracy=100;
+  var timeout=Number(opts.timeout);if(!isFinite(timeout)||timeout<=0)timeout=10000;
   var g=window._gps;
 
   return new Promise(function(resolve,reject){
     var now=Date.now();
-
-    /*
-     * Pour "PK?" une position récente est préférable à une nouvelle
-     * acquisition indépendante. Cela évite tout conflit avec le watch.
-     */
-    if(
-      g.last &&
-      now-g.lastFixAt<=freshMs &&
-      g.last.accuracy<=maxAccuracy
-    ){
-      resolve(g.last);
-      return;
+    if(g.last&&now-g.lastFixAt<=freshMs&&g.last.accuracy<=maxAccuracy){
+      resolve(g.last);return;
     }
-
-    var w={
-      freshMs:freshMs,
-      maxAccuracy:maxAccuracy,
-      resolve:resolve,
-      reject:reject,
-      timer:null
-    };
-
+    var w={freshMs:freshMs,maxAccuracy:maxAccuracy,resolve:resolve,reject:reject,timer:null};
     w.timer=setTimeout(function(){
-      var i=g.waiters.indexOf(w);
-      if(i>=0)g.waiters.splice(i,1);
-
-      /*
-       * En terrain, si aucun nouveau fix assez précis n'est disponible,
-       * on utilise le dernier fix connu plutôt que de lancer un autre GPS.
-       */
-      if(g.last)resolve(g.last);
-      else reject(new Error('Aucune position GPS reçue'));
+      var i=g.waiters.indexOf(w);if(i>=0)g.waiters.splice(i,1);
+      if(g.last)resolve(g.last);else reject(new Error('Aucune position GPS reçue'));
     },timeout);
-
     g.waiters.push(w);
-
     if(!g.active)_gpsStart();
   });
 }
 
-function _gpsHandlePosition(pos, source){
-  var g=window._gps;
+function _gpsNormaliseHeading(h){
+  h=Number(h);
+  return isFinite(h)&&h>=0?h:null;
+}
 
-  if(!g.active || !pos || !pos.coords)return;
+function _gpsApplyHeading(p){
+  var g=window._gps;
+  var h=_gpsNormaliseHeading(p.heading);
+  if(h===null)h=_gpsNormaliseHeading(g._heading);
+  p.heading=h;
+
+  /* Petit cône visuel optionnel via rotation du halo du point. */
+  if(g._dotEl && h!==null){
+    g._dotEl.dataset.heading=String(h);
+  }
+}
+
+function _gpsHandlePosition(pos,source){
+  var g=window._gps;
+  if(!g.active||!pos||!pos.coords)return;
 
   var co=pos.coords;
-
-  if(
-    !isFinite(co.latitude) ||
-    !isFinite(co.longitude)
-  )return;
+  if(!isFinite(co.latitude)||!isFinite(co.longitude))return;
 
   var acc=+co.accuracy;
-  if(!isFinite(acc) || acc<=0 || acc>GPS_MAX_ACCURACY){
-    console.warn('GPS accuracy hors seuil:',acc);
-    return;
-  }
+  if(!isFinite(acc)||acc<=0||acc>GPS_MAX_ACCURACY)return;
 
   var timestamp=Number(pos.timestamp)||Date.now();
   var receivedAt=Date.now();
+  var measurementAge=Math.max(0,receivedAt-timestamp);
 
   /*
-   * Anti-cache / anti-retour :
-   * un fix avec le même timestamp + mêmes coordonnées est ignoré.
-   * Un fix mesuré dans le passé de façon anormalement importante
-   * ne doit pas remplacer une position déjà plus récente.
+   * maximumAge=0 est demandé au navigateur. On conserve en plus une barrière
+   * anti-régression pour éviter qu'un ancien fix arrivé en retard écrase un
+   * nouveau fix.
    */
-  if(g.last){
-    var sameCoords=
-      Math.abs(+co.latitude-g.last.lat)<0.00000001 &&
-      Math.abs(+co.longitude-g.last.lng)<0.00000001;
-
-    if(timestamp<=g.lastGpsTimestamp && sameCoords){
-      return;
-    }
-
-    if(
-      timestamp<g.lastGpsTimestamp &&
-      g.lastFixAt &&
-      receivedAt-g.lastFixAt<GPS_STALE_MS
-    ){
-      console.warn('GPS ancien ignoré:',new Date(timestamp).toISOString());
-      return;
-    }
+  if(g.last && timestamp<g.lastGpsTimestamp){
+    console.warn('Fix GPS plus ancien ignoré:',timestamp,g.lastGpsTimestamp);
+    return;
   }
 
   var p={
@@ -1374,86 +1322,75 @@ function _gpsHandlePosition(pos, source){
     heading:isFinite(co.heading)?+co.heading:null,
     timestamp:timestamp,
     source:source||'watch',
-    _receivedAt:receivedAt
+    _receivedAt:receivedAt,
+    _measurementAge:measurementAge
   };
+
+  _gpsApplyHeading(p);
 
   var first=!g.last;
 
+  /* Etat GPS brut accepté. AUCUN filtre spatial n'empêche le point de bouger. */
   g.last=p;
   g.lastFixAt=receivedAt;
   g.lastGpsTimestamp=timestamp;
 
   /*
-   * Le point bleu est mis à jour immédiatement avec le fix réel.
-   * Aucun filtre lourd ni calcul PK ne doit bloquer ce chemin.
+   * Chemin critique : position -> point bleu immédiat.
+   * Aucun calcul PK, aucun fit, aucune requête réseau ici.
    */
   _gpsSetData(p);
 
-  /*
-   * Le recentrage caméra est un second chemin totalement indépendant.
-   */
+  /* Caméra seulement après le rendu du point. */
   _gpsRecenter(p,first);
 
   _gpsUpdateBadge();
   _gpsResolveWaiters(p);
 
-  if(first){
+  if(measurementAge>GPS_MAX_TIMESTAMP_AGE_MS){
+    _gpsSetStatus('📡 Position reçue mais ancienne · attente du GPS réel…',false);
+  }else if(first){
     _gpsSetStatus('📍 Position trouvée · suivi GPS continu actif',true);
     _gpsHideRecenterBanner();
   }
 }
 
 function _gpsHandleError(e){
-  var g=window._gps;
   if(!e)return;
-
   if(e.code===1){
     _gpsRejectWaiters(new Error('Autorisation de localisation refusée'));
-    _gpsSetStatus(
-      '📍 Autorisation refusée. Vérifiez les paramètres du site.',
-      true
-    );
-    _gpsStop(true);
-    return;
+    _gpsSetStatus('📍 Autorisation refusée. Vérifiez les paramètres du site.',true);
+    _gpsStop(true);return;
   }
-
   if(e.code===2){
-    _gpsSetStatus('📡 GPS indisponible · recherche en cours…',false);
-    return;
+    _gpsSetStatus('📡 GPS indisponible · recherche en cours…',false);return;
   }
-
   if(e.code===3){
-    /*
-     * Timeout du provider : on NE démarre rien en parallèle.
-     * Le watch reste vivant et le système réessaie son acquisition.
-     */
-    _gpsSetStatus('📡 GPS lent · recherche d’un nouveau fix…',false);
-    return;
+    _gpsSetStatus('📡 GPS lent · attente d’un nouveau fix…',false);return;
   }
-
   console.warn('GPS error:',e);
 }
 
-/*
- * UN SEUL watchPosition pendant toute la session de suivi.
- * Pas de getCurrentPosition périodique.
- */
 function _gpsStartWatch(){
   var g=window._gps;
-
   if(g.watchId!==null)return;
+
+  if(!navigator.geolocation){
+    _gpsSetStatus('📍 Géolocalisation indisponible',true);return;
+  }
 
   g.mode='watch';
   var session=g.session;
 
   try{
+    /* UN SEUL watcher. C'est le moteur de suivi permanent. */
     g.watchId=navigator.geolocation.watchPosition(
       function(pos){
-        if(session!==g.session || !g.active)return;
+        if(session!==g.session||!g.active)return;
         _gpsHandlePosition(pos,'watch');
       },
       function(e){
-        if(session!==g.session || !g.active)return;
+        if(session!==g.session||!g.active)return;
         _gpsHandleError(e);
       },
       {
@@ -1462,39 +1399,61 @@ function _gpsStartWatch(){
         timeout:GPS_WATCH_TIMEOUT_MS
       }
     );
-
     _gpsUpdateBadge();
-
   }catch(e){
     console.error('watchPosition error:',e);
-    g.watchId=null;
-    g.mode=null;
-    g.active=false;
-    g.following=false;
+    g.watchId=null;g.mode=null;g.active=false;g.following=false;
     _gpsRejectWaiters(e);
     _gpsSetStatus('📍 GPS : '+e.message,true);
     _gpsUpdateBadge();
   }
 }
 
+function _gpsEnsureWatch(){
+  var g=window._gps;
+  if(!g.active)return;
+  if(g.watchId===null)_gpsStartWatch();
+}
+
+function _gpsAttachOrientation(){
+  var g=window._gps;
+  if(g._orientationAttached)return;
+  g._orientationAttached=true;
+
+  /* Android : permet d'obtenir un cap exploitable lorsque le GPS n'en fournit pas. */
+  function handler(e){
+    if(!g.active)return;
+    var h=null;
+    if(isFinite(e.alpha))h=(360-Number(e.alpha))%360;
+    if(h!==null)g._heading=h;
+  }
+  try{
+    if('ondeviceorientationabsolute' in window)
+      window.addEventListener('deviceorientationabsolute',handler,true);
+    else
+      window.addEventListener('deviceorientation',handler,true);
+  }catch(e){}
+}
+
+function _gpsDetachOrientation(){
+  /* On garde l'écouteur inoffensif pendant la page ; il ne traite rien si GPS off. */
+}
+
 function _gpsStart(){
   var g=window._gps;
-
-  if(g.active)return;
+  if(g.active){_gpsEnsureWatch();return;}
 
   if(!navigator.geolocation){
-    _gpsSetStatus('📍 Géolocalisation indisponible',true);
-    return;
+    _gpsSetStatus('📍 Géolocalisation indisponible',true);return;
   }
 
   var localHost=
-    location.hostname==='localhost' ||
-    location.hostname==='127.0.0.1' ||
+    location.hostname==='localhost'||
+    location.hostname==='127.0.0.1'||
     location.hostname==='::1';
 
-  if(!window.isSecureContext && !localHost){
-    _gpsSetStatus('🔒 GPS : HTTPS requis',true);
-    return;
+  if(!window.isSecureContext&&!localHost){
+    _gpsSetStatus('🔒 GPS : HTTPS requis',true);return;
   }
 
   g.active=true;
@@ -1504,16 +1463,12 @@ function _gpsStart(){
   g.lastGpsTimestamp=0;
   g.lastCamera=null;
   g.session++;
+  g._heading=null;
 
-  _gpsSetStatus('📡 Recherche de votre position…',true);
+  _ensureGpsLayers();
+  _gpsAttachOrientation();
+  _gpsSetStatus('📡 Recherche GPS haute précision…',true);
   _gpsUpdateBadge();
-
-  /*
-   * Important :
-   * on ne lit plus navigator.permissions.query avant watchPosition.
-   * Le navigateur gère lui-même la permission et ne reçoit qu'un seul
-   * appel de géolocalisation actif.
-   */
   _gpsStartWatch();
 }
 
@@ -1525,6 +1480,8 @@ function _gpsStop(silent){
     g.watchId=null;
   }
 
+  if(g._resumeTimer){clearTimeout(g._resumeTimer);g._resumeTimer=null;}
+
   _gpsRejectWaiters(new Error('Suivi GPS arrêté'));
 
   g.session++;
@@ -1535,18 +1492,17 @@ function _gpsStop(silent){
   g.lastGpsTimestamp=0;
   g.lastCamera=null;
   g.mode=null;
+  g._heading=null;
+
+  _gpsHideMarker();
 
   try{
-    if(map.getSource('_gpsPoint'))
-      map.getSource('_gpsPoint').setData(emptyFC());
     if(map.getSource('_gpsCircle'))
       map.getSource('_gpsCircle').setData(emptyFC());
   }catch(e){}
 
   _gpsHideRecenterBanner();
-
   if(!silent)_gpsSetStatus('📍 Suivi GPS arrêté',true);
-
   _gpsUpdateBadge();
 }
 
@@ -1558,15 +1514,12 @@ function locateMe(){
     return;
   }
 
-  /*
-   * Un appui sur le bouton réactive uniquement le FOLLOW.
-   * Le watch existant continue : aucune nouvelle permission,
-   * aucun nouveau watcher.
-   */
   g.following=true;
   _gpsHideRecenterBanner();
+  _gpsEnsureWatch();
 
   if(g.last){
+    /* Recentrage immédiat sur le dernier fix RÉEL connu. */
     _gpsRecenter(g.last,true);
     _gpsSetStatus('📍 Recentrage actif · suivi GPS continu',true);
   }else{
@@ -1576,75 +1529,53 @@ function locateMe(){
 
 function startLiveLocation(){locateMe();}
 function stopLiveLocation(){_gpsStop(false);}
-
 window.locateMe=locateMe;
 window.startLiveLocation=startLiveLocation;
 window.stopLiveLocation=stopLiveLocation;
 
 /*
- * Interaction utilisateur :
- * - drag / zoom manuel => on arrête seulement le centrage automatique.
- * - le point bleu et le GPS continuent de bouger.
+ * L'utilisateur peut déplacer la carte sans perdre le GPS.
+ * Seul le FOLLOW caméra est désactivé.
  */
 map.on('dragstart',function(e){
   if(!window._gps.active)return;
-  if(!e || !e.originalEvent)return;
-
+  if(!e||!e.originalEvent)return;
   window._gps.following=false;
   _gpsShowRecenterBanner();
 });
-
 map.on('zoomstart',function(e){
   if(!window._gps.active)return;
-  if(!e || !e.originalEvent)return;
-
+  if(!e||!e.originalEvent)return;
   window._gps.following=false;
   _gpsShowRecenterBanner();
 });
 
 /*
- * Retour au premier plan :
- * le même watcher est conservé s'il existe.
- * S'il a été perdu par le navigateur pendant une suspension,
- * on recrée un seul watcher, sans polling.
+ * Retour au premier plan : le watcher est conservé s'il existe ; sinon il est
+ * réarmé une seule fois. Pas de polling, pas de boucle concurrente.
  */
 document.addEventListener('visibilitychange',function(){
   var g=window._gps;
-
-  if(
-    !document.hidden &&
-    g.active &&
-    g.watchId===null
-  ){
-    g.session++;
-    _gpsStartWatch();
-  }
-
-  _gpsUpdateBadge();
+  if(document.hidden||!g.active)return;
+  if(g._resumeTimer)clearTimeout(g._resumeTimer);
+  g._resumeTimer=setTimeout(function(){
+    if(g.active)_gpsEnsureWatch();
+  },80);
 });
 
 window.addEventListener('pageshow',function(){
   var g=window._gps;
-
-  if(
-    g.active &&
-    g.watchId===null
-  ){
-    g.session++;
-    _gpsStartWatch();
-  }
-
-  _gpsUpdateBadge();
+  if(g.active)_gpsEnsureWatch();
 });
 
-/*
- * Aucun démarrage automatique :
- * le suivi démarre seulement lorsque l'agent appuie sur 📍.
- */
+window.addEventListener('online',function(){
+  if(window._gps.active)_gpsEnsureWatch();
+});
 
 // ══════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════
 // DETECTION PK / ACCES / PAM LE PLUS PROCHE
+// ══════════════════════════════════════════════════════════
+
 // ══════════════════════════════════════════════════════════
 function _haversine(lat1,lng1,lat2,lng2){
   var R=6371000,r=Math.PI/180;
