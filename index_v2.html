@@ -195,6 +195,12 @@ button,a,[onclick]{touch-action:manipulation}
 #detail-panel.dp-full #dp-drag-handle::after{content:'▴'}
 #fab-toggle{display:none}
 
+
+.lgv-blue-dot{position:relative}
+.lgv-blue-dot::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(66,133,244,.38);animation:blueDotPulse 1.8s ease-out infinite}
+@keyframes blueDotPulse{0%{transform:scale(.55);opacity:.85}100%{transform:scale(1.45);opacity:0}}
+@media(prefers-reduced-motion:reduce){.lgv-blue-dot::after{animation:none}}
+
 /* ══════════ MOBILE — aligné pour Samsung A56 / Firefox ══════════ */
 @media(max-width:768px){
   #detail-panel{position:fixed;width:100%;max-width:100%;top:auto;height:44vh;
@@ -338,11 +344,11 @@ button,input,select,a{-webkit-tap-highlight-color:transparent}
 <script>
 /* v3.90 : version terrain Samsung A56 – corrected positioning + fast PK search */
 (function(){
-  var V='v3.90-live-gps-blue-dot';
+  var V='v3.91-live-gps-blue-dot';
   try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){
-      navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).catch(function(e){
+      navigator.serviceWorker.register('./service-worker.js',{scope:'./',updateViaCache:'none'}).then(function(reg){reg.update().catch(function(){});}).catch(function(e){
         console.warn('Service Worker non enregistré :',e);
       });
     });
@@ -361,7 +367,7 @@ window.addEventListener('resize',updateAppViewportHeight,{passive:true});
 window.addEventListener('orientationchange',function(){setTimeout(updateAppViewportHeight,150);setTimeout(updateAppViewportHeight,500);});
 if(window.visualViewport)window.visualViewport.addEventListener('resize',updateAppViewportHeight,{passive:true});
 
-var APP_VER = 'v3.90-live-gps-blue-dot';
+var APP_VER = 'v3.91-live-gps-blue-dot';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -369,14 +375,14 @@ fetch('data/pk.geojson?_v='+APP_VER)
   .then(function(d){_pkPrefetch=d;if(_pkMapReady)_setupPKLayers(d);})
   .catch(function(e){console.warn('PK prefetch:',e);_loading.pk=false;});
 
-var _pkMetricBase = new URL('data/pk_metric.pmtiles?v=380', document.baseURI).href;
+var _pkMetricBase = new URL('data/pk_metric.pmtiles?_v='+encodeURIComponent(APP_VER), document.baseURI).href;
 var _pmProtocol = new pmtiles.Protocol();
 var _pkMetricArchive = new pmtiles.PMTiles(_pkMetricBase);
 _pmProtocol.add(_pkMetricArchive);
 maplibregl.addProtocol('pmtiles', _pmProtocol.tile.bind(_pmProtocol));
 
 function c(v){return(v===null||v===undefined||String(v).match(/^(nan|NaN|None|null|undefined)$/i))?"":String(v)}
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function esc(s){return String(s==null?'':s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
 
 /* ───────────── Normalisation rapide pour la recherche ───────────── */
 function _norm(s){
@@ -1055,15 +1061,17 @@ window._gps = {
   _marker:null,
   _dotEl:null,
   _resumeTimer:null,
+  healthTimer:null,
   _orientationAttached:false,
   _heading:null
 };
 
-var GPS_WATCH_TIMEOUT_MS = 10000;
-var GPS_MAX_ACCURACY = 3000;
-var GPS_MAX_TIMESTAMP_AGE_MS = 20000;
-var GPS_CAMERA_MIN_MOVE_M = 1.5;
-var GPS_CAMERA_DURATION_MS = 160;
+var GPS_WATCH_TIMEOUT_MS = 15000;
+var GPS_MAX_ACCURACY = 250;
+var GPS_MAX_TIMESTAMP_AGE_MS = 15000;
+var GPS_CAMERA_MIN_MOVE_M = 3;
+var GPS_CAMERA_DURATION_MS = 220;
+var GPS_WATCH_STALE_MS = 12000;
 
 function _gpsIsActive(){return window._gps.active;}
 
@@ -1349,6 +1357,23 @@ function _gpsHandleError(e){
   console.warn('GPS error:',e);
 }
 
+function _gpsStartHealthCheck(){
+  var g=window._gps;
+  if(g.healthTimer)clearInterval(g.healthTimer);
+  g.healthTimer=setInterval(function(){
+    if(!g.active||document.hidden)return;
+    var age=g.lastFixAt?Date.now()-g.lastFixAt:Infinity;
+    if(age>GPS_WATCH_STALE_MS){
+      if(g.watchId!==null){try{navigator.geolocation.clearWatch(g.watchId);}catch(e){}g.watchId=null;}
+      _gpsSetStatus('📡 Relance du GPS…',false);
+      _gpsStartWatch();
+    }
+  },5000);
+}
+function _gpsStopHealthCheck(){
+  var g=window._gps;
+  if(g.healthTimer){clearInterval(g.healthTimer);g.healthTimer=null;}
+}
 function _gpsStartWatch(){
   var g=window._gps;
   if(g.watchId!==null)return;
@@ -1376,6 +1401,7 @@ function _gpsStartWatch(){
         timeout:GPS_WATCH_TIMEOUT_MS
       }
     );
+    _gpsStartHealthCheck();
     _gpsUpdateBadge();
   }catch(e){
     console.error('watchPosition error:',e);
@@ -1455,6 +1481,7 @@ function _gpsStop(silent){
   }
 
   if(g._resumeTimer){clearTimeout(g._resumeTimer);g._resumeTimer=null;}
+  _gpsStopHealthCheck();
 
   _gpsRejectWaiters(new Error('Suivi GPS arrêté'));
 
@@ -1524,13 +1551,18 @@ document.addEventListener('visibilitychange',function(){
   if(document.hidden||!g.active)return;
   if(g._resumeTimer)clearTimeout(g._resumeTimer);
   g._resumeTimer=setTimeout(function(){
-    if(g.active)_gpsEnsureWatch();
-  },80);
+    if(!g.active)return;
+    var stale=!g.lastFixAt||(Date.now()-g.lastFixAt>GPS_WATCH_STALE_MS);
+    if(stale&&g.watchId!==null){try{navigator.geolocation.clearWatch(g.watchId);}catch(e){}g.watchId=null;}
+    _gpsEnsureWatch();
+  },250);
 });
 
-window.addEventListener('pageshow',function(){
+window.addEventListener('pageshow',function(e){
   var g=window._gps;
-  if(g.active)_gpsEnsureWatch();
+  if(!g.active)return;
+  if(e.persisted&&g.watchId!==null){try{navigator.geolocation.clearWatch(g.watchId);}catch(err){}g.watchId=null;}
+  _gpsEnsureWatch();
 });
 
 window.addEventListener('online',function(){
@@ -1612,12 +1644,18 @@ function findNearest(){
   }
 
   _gpsWaitForFix({
-    freshMs:3000,
-    maxAccuracy:100,
-    timeout:10000
+    freshMs:5000,
+    maxAccuracy:50,
+    timeout:12000
   }).then(function(p){
     displayNow(p.lat,p.lng,p.accuracy);
   }).catch(function(e){
+    var g=window._gps;
+    if(g.last&&Date.now()-g.lastFixAt<=15000&&g.last.accuracy<=150){
+      displayNow(g.last.lat,g.last.lng,g.last.accuracy);
+      showNetToast('⚠ Position approximative ±'+Math.round(g.last.accuracy)+' m');
+      return;
+    }
     closeDetail();
     showNetToast('📍 Localisation impossible : '+(e.message||'GPS indisponible'));
   });
@@ -2003,8 +2041,14 @@ function dpjDel(code,idx){
   var el=document.getElementById('dpj-'+code);if(el)el.innerHTML=_dpjItems(code);
   var cnt=document.getElementById('dpj-cnt-'+code);if(cnt)cnt.textContent=list.length;
 }
+var MAX_LOCAL_ATTACHMENT_SIZE=2*1024*1024;
 function dpjAdd(code,input){
-  var files=Array.from(input.files),list=getPJList(code),toRead=files.length;
+  var files=Array.from(input.files||[]).filter(function(file){
+    if(file.size>MAX_LOCAL_ATTACHMENT_SIZE){showNetToast('⚠ '+file.name+' dépasse 2 Mo');return false;}
+    return true;
+  });
+  if(!files.length){input.value='';return;}
+  var list=getPJList(code),toRead=files.length;
   files.forEach(function(file){
     var reader=new FileReader();
     reader.onload=function(e){
@@ -2057,7 +2101,7 @@ function photoHtml(p){
 function dpPhoto(p){var h=photoHtml(p);return h?'<div class="dp-photo-w">'+h+'</div>':'';}
 function dpSp(p){
   if(!p._sp_url||p._sp_url==='null'||p._sp_url==='None')return'';
-  return'<div class="dp-actions"><a class="dp-sp" href="'+esc(c(p._sp_url))+'" target="_blank">📂 SharePoint</a></div>';
+  return'<div class="dp-actions"><a class="dp-sp" href="'+esc(c(p._sp_url))+'" target="_blank" rel="noopener noreferrer">📂 SharePoint</a></div>';
 }
 function featureKey(type,p){
   var id=c(p.CODE_OBJET||p.code_objet||p.NOM_ACCES||p.Name||p.name||p.CODE||p.code||p.cd_sig||p.Appellation||p.libelle||'');
