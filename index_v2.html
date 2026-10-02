@@ -159,9 +159,20 @@ button,a,[onclick]{touch-action:manipulation}
   background:rgba(0,0,0,.55);z-index:9500;align-items:center;justify-content:center}
 #kml-choice-modal.open{display:flex}
 .kml-del{background:#ffebee;border:none;border-radius:3px;padding:2px 7px;cursor:pointer;color:#c62828;font-size:11px;margin-left:auto;flex-shrink:0}
-#load-status{display:none;position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+20px));left:50%;transform:translateX(-50%);
-  z-index:802;background:rgba(26,26,46,.9);color:white;padding:5px 16px;border-radius:16px;
-  font-size:11.5px;white-space:nowrap;pointer-events:none}
+#load-status{
+  display:none;position:absolute;
+  bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+20px));
+  left:50%;transform:translateX(-50%);
+  z-index:802;background:rgba(26,26,46,.9);color:white;
+  padding:5px 16px;border-radius:16px;font-size:11.5px;
+  pointer-events:none;
+  max-width:calc(100vw - 24px);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#ver-badge{
+  max-width:calc(100vw - 80px);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .lgv-legend-wrap{position:relative;display:flex;flex-direction:column;pointer-events:auto}
 .lgv-legend-hdr{display:none;align-items:center;gap:6px;background:white;padding:6px 10px;
   border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;color:#1a1a2e;
@@ -183,6 +194,8 @@ button,a,[onclick]{touch-action:manipulation}
 #dp-drag-handle::after{content:'▾';color:rgba(255,255,255,.5);font-size:12px;line-height:1}
 #detail-panel.dp-full #dp-drag-handle::after{content:'▴'}
 #fab-toggle{display:none}
+
+/* ══════════ MOBILE — aligné pour Samsung A56 / Firefox ══════════ */
 @media(max-width:768px){
   #detail-panel{position:fixed;width:100%;max-width:100%;top:auto;height:44vh;
     transform:translateY(100%);box-shadow:0 -4px 20px rgba(0,0,0,.2);
@@ -194,12 +207,19 @@ button,a,[onclick]{touch-action:manipulation}
   #dp-backdrop.open{background:rgba(0,0,0,.25)}
   #search-input{font-size:16px;padding:9px 12px}
   #tbl-header input{font-size:16px}
-  #search-wrap{left:44px;width:calc(100vw - 110px);transform:none;
+
+  /* Barre de recherche : démarre après le bouton ☰ (~48px), va jusqu'à ~10px du bord droit */
+  #search-wrap{left:54px;width:calc(100vw - 62px);transform:none;
     top:max(8px,calc(env(safe-area-inset-top,0px) + 4px))}
-  #layers-btn{top:max(10px,calc(env(safe-area-inset-top,0px) + 6px));
+
+  /* Bouton ☰ : même ligne verticale que la barre de recherche */
+  #layers-btn{top:max(8px,calc(env(safe-area-inset-top,0px) + 4px));
     padding:10px 13px;font-size:22px;border-radius:0 8px 8px 0}
+
+  /* Panneau couches : plus bas que le bas du bouton ☰ */
   #layers-panel{width:min(290px,82vw);
-    top:max(60px,calc(env(safe-area-inset-top,0px) + 46px))}
+    top:max(64px,calc(env(safe-area-inset-top,0px) + 52px))}
+
   .lp-item{padding:9px 4px;font-size:13.5px}
   .lp-item input[type=checkbox]{width:18px;height:18px}
   .fab{width:48px;height:48px;font-size:20px}
@@ -224,8 +244,9 @@ button,a,[onclick]{touch-action:manipulation}
   .lgv-legend-wrap.open .lgv-legend{display:block}
   #gps-recenter-banner{bottom:max(88px,calc(env(safe-area-inset-bottom,0px)+62px))}
 }
+
 @media(max-width:420px){
-  #search-wrap{left:40px;width:calc(100vw - 100px)}
+  #search-wrap{left:50px;width:calc(100vw - 58px)}
   .fab{width:44px;height:44px;font-size:18px}
 }
 
@@ -233,15 +254,12 @@ button,a,[onclick]{touch-action:manipulation}
 html,body{height:var(--app-height)!important;min-height:var(--app-height);overscroll-behavior:none}
 #map{height:var(--app-height)!important}
 button,input,select,a{-webkit-tap-highlight-color:transparent}
-@media(max-width:768px){
-  #search-wrap{top:max(8px,calc(var(--safe-top) + 4px))}
-  #layers-btn{top:max(10px,calc(var(--safe-top) + 6px))}
-  #fab-bar{right:max(8px,calc(var(--safe-right) + 8px));bottom:max(20px,calc(var(--safe-bottom) + 8px))}
-  #detail-panel.dp-full{height:calc(84vh - var(--safe-bottom))}
-}
+
 @media(display-mode:standalone){
-  #search-wrap{top:max(8px,calc(var(--safe-top) + 5px))}
-  #fab-bar{bottom:max(18px,calc(var(--safe-bottom) + 10px))}
+  #search-wrap{top:max(8px,calc(env(safe-area-inset-top,0px) + 6px))}
+  #layers-btn{top:max(8px,calc(env(safe-area-inset-top,0px) + 6px))}
+  #layers-panel{top:max(66px,calc(env(safe-area-inset-top,0px) + 54px))}
+  #fab-bar{bottom:max(18px,calc(env(safe-area-inset-bottom,0px) + 10px))}
 }
 @media(orientation:landscape) and (max-height:520px){
   #detail-panel{height:82vh}#detail-panel.dp-full{height:96vh}.fab{width:42px;height:42px}
@@ -318,7 +336,7 @@ button,input,select,a{-webkit-tap-highlight-color:transparent}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* v3.80 : version complète terrain Samsung A56 */
+/* v3.90 : version terrain Samsung A56 – corrected positioning + fast PK search */
 (function(){
   var V='v3.90-live-gps-blue-dot';
   try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
@@ -359,6 +377,14 @@ maplibregl.addProtocol('pmtiles', _pmProtocol.tile.bind(_pmProtocol));
 
 function c(v){return(v===null||v===undefined||String(v).match(/^(nan|NaN|None|null|undefined)$/i))?"":String(v)}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+/* ───────────── Normalisation rapide pour la recherche ───────────── */
+function _norm(s){
+  return String(s==null?'':s).toLowerCase().replace(/\s*\+\s*/g,'+').trim();
+}
+var _searchLastQ='', _searchLastHits=[];
+function _searchInvalidate(){_searchLastQ='';_searchLastHits=[];}
+var _pkIsLikely=/^\d{1,4}(\+\d{0,3})?$/;
 
 function _setupPKLayers(d){
   var all=d.features||[];
@@ -1011,24 +1037,7 @@ window._forceLayerOn=function(type){
 // ══════════════════════════════════════════════════════════
 /*
  GPS v3.90 – LIVE TRACKING TERRAIN / BLUE DOT ENGINE
-
- Objectif : comportement type Google Maps / Field Maps côté navigateur.
-
- IMPORTANT : en HTML/Firefox Android, on ne peut pas accéder directement au
- Fused Location Provider Android utilisé par une application native. Le meilleur
- moteur disponible ici est donc UN SEUL navigator.geolocation.watchPosition()
- avec haute précision, sans polling concurrent.
-
- 1. Un seul watchPosition pendant toute la session.
- 2. enableHighAccuracy=true, maximumAge=0, timeout=10000.
- 3. Le FIX GPS brut est accepté puis affiché immédiatement.
- 4. Le point bleu est un DOM Marker MapLibre -> setLngLat() direct.
- 5. Le cercle d'incertitude reste séparé du point bleu.
- 6. Caméra / FOLLOW totalement séparés du moteur GPS.
- 7. PK / Accès / PAM réutilisent le dernier fix et ne démarrent jamais un
-    second moteur de localisation.
- 8. Si Firefox suspend le watcher en arrière-plan et que l'ID disparaît,
-    un seul watcher est recréé au retour au premier plan.
+ (logique inchangée – voir commentaires d'origine)
 */
 window._gps = {
   active:false,
@@ -1058,14 +1067,6 @@ var GPS_CAMERA_DURATION_MS = 160;
 
 function _gpsIsActive(){return window._gps.active;}
 
-function _gpsDotFeature(p){
-  return {
-    type:'Feature',
-    properties:{accuracy:p.accuracy,speed:p.speed,heading:p.heading,timestamp:p.timestamp},
-    geometry:{type:'Point',coordinates:[p.lng,p.lat]}
-  };
-}
-
 function _gpsCirclePoly(lng,lat,r){
   var a=[],R=6378137,lr=lat*Math.PI/180;
   for(var i=0;i<=64;i++){
@@ -1082,6 +1083,8 @@ function _createBlueDotElement(){
   var el=document.createElement('div');
   el.className='lgv-blue-dot';
   el.setAttribute('aria-label','Position GPS');
+  /* NB : MapLibre gère le centrage via anchor:'center'. On ne met PAS
+     de transform:translate(-50%,-50%) ici (écrasé par MapLibre). */
   el.style.cssText=[
     'width:24px',
     'height:24px',
@@ -1089,7 +1092,6 @@ function _createBlueDotElement(){
     'background:#4285f4',
     'border:3px solid #fff',
     'box-shadow:0 1px 5px rgba(0,0,0,.45),0 0 0 7px rgba(66,133,244,.16)',
-    'transform:translate(-50%,-50%)',
     'will-change:transform,left,top',
     'touch-action:none',
     'pointer-events:none'
@@ -1098,11 +1100,6 @@ function _createBlueDotElement(){
 }
 
 function _ensureGpsLayers(){
-  /*
-   * Le cercle reste en GeoJSON car c'est une surface géographique.
-   * Le point bleu, lui, est volontairement un DOM Marker : sa position est
-   * modifiée directement par marker.setLngLat() à chaque fix.
-   */
   if(!map.getSource('_gpsCircle'))
     map.addSource('_gpsCircle',{type:'geojson',data:emptyFC()});
 
@@ -1133,10 +1130,8 @@ function _ensureGpsLayers(){
 
 function _gpsSetData(p){
   _ensureGpsLayers();
-
   var g=window._gps;
 
-  /* Mise à jour DIRECTE du point bleu, sans GeoJSON round-trip. */
   if(g._marker){
     g._marker.setLngLat([p.lng,p.lat]);
     if(g._dotEl)g._dotEl.style.visibility='visible';
@@ -1177,11 +1172,6 @@ function _gpsRecenter(p,initial){
   var zoom=map.getZoom();
   if(initial && zoom<17)zoom=18;
 
-  /*
-   * Caméra indépendante du point bleu.
-   * Durée courte pour ne jamais accumuler des animations lorsque le GPS
-   * envoie plusieurs fixes rapprochés.
-   */
   try{
     map.easeTo({
       center:[p.lng,p.lat],
@@ -1284,7 +1274,6 @@ function _gpsApplyHeading(p){
   if(h===null)h=_gpsNormaliseHeading(g._heading);
   p.heading=h;
 
-  /* Petit cône visuel optionnel via rotation du halo du point. */
   if(g._dotEl && h!==null){
     g._dotEl.dataset.heading=String(h);
   }
@@ -1304,11 +1293,6 @@ function _gpsHandlePosition(pos,source){
   var receivedAt=Date.now();
   var measurementAge=Math.max(0,receivedAt-timestamp);
 
-  /*
-   * maximumAge=0 est demandé au navigateur. On conserve en plus une barrière
-   * anti-régression pour éviter qu'un ancien fix arrivé en retard écrase un
-   * nouveau fix.
-   */
   if(g.last && timestamp<g.lastGpsTimestamp){
     console.warn('Fix GPS plus ancien ignoré:',timestamp,g.lastGpsTimestamp);
     return;
@@ -1330,18 +1314,12 @@ function _gpsHandlePosition(pos,source){
 
   var first=!g.last;
 
-  /* Etat GPS brut accepté. AUCUN filtre spatial n'empêche le point de bouger. */
   g.last=p;
   g.lastFixAt=receivedAt;
   g.lastGpsTimestamp=timestamp;
 
-  /*
-   * Chemin critique : position -> point bleu immédiat.
-   * Aucun calcul PK, aucun fit, aucune requête réseau ici.
-   */
   _gpsSetData(p);
 
-  /* Caméra seulement après le rendu du point. */
   _gpsRecenter(p,first);
 
   _gpsUpdateBadge();
@@ -1383,7 +1361,6 @@ function _gpsStartWatch(){
   var session=g.session;
 
   try{
-    /* UN SEUL watcher. C'est le moteur de suivi permanent. */
     g.watchId=navigator.geolocation.watchPosition(
       function(pos){
         if(session!==g.session||!g.active)return;
@@ -1420,7 +1397,6 @@ function _gpsAttachOrientation(){
   if(g._orientationAttached)return;
   g._orientationAttached=true;
 
-  /* Android : permet d'obtenir un cap exploitable lorsque le GPS n'en fournit pas. */
   function handler(e){
     if(!g.active)return;
     var h=null;
@@ -1435,9 +1411,7 @@ function _gpsAttachOrientation(){
   }catch(e){}
 }
 
-function _gpsDetachOrientation(){
-  /* On garde l'écouteur inoffensif pendant la page ; il ne traite rien si GPS off. */
-}
+function _gpsDetachOrientation(){}
 
 function _gpsStart(){
   var g=window._gps;
@@ -1519,7 +1493,6 @@ function locateMe(){
   _gpsEnsureWatch();
 
   if(g.last){
-    /* Recentrage immédiat sur le dernier fix RÉEL connu. */
     _gpsRecenter(g.last,true);
     _gpsSetStatus('📍 Recentrage actif · suivi GPS continu',true);
   }else{
@@ -1533,10 +1506,6 @@ window.locateMe=locateMe;
 window.startLiveLocation=startLiveLocation;
 window.stopLiveLocation=stopLiveLocation;
 
-/*
- * L'utilisateur peut déplacer la carte sans perdre le GPS.
- * Seul le FOLLOW caméra est désactivé.
- */
 map.on('dragstart',function(e){
   if(!window._gps.active)return;
   if(!e||!e.originalEvent)return;
@@ -1550,10 +1519,6 @@ map.on('zoomstart',function(e){
   _gpsShowRecenterBanner();
 });
 
-/*
- * Retour au premier plan : le watcher est conservé s'il existe ; sinon il est
- * réarmé une seule fois. Pas de polling, pas de boucle concurrente.
- */
 document.addEventListener('visibilitychange',function(){
   var g=window._gps;
   if(document.hidden||!g.active)return;
@@ -1574,8 +1539,6 @@ window.addEventListener('online',function(){
 
 // ══════════════════════════════════════════════════════════
 // DETECTION PK / ACCES / PAM LE PLUS PROCHE
-// ══════════════════════════════════════════════════════════
-
 // ══════════════════════════════════════════════════════════
 function _haversine(lat1,lng1,lat2,lng2){
   var R=6371000,r=Math.PI/180;
@@ -1622,16 +1585,8 @@ function findNearest(){
     if(done)return;
     done=true;
 
-    /*
-     * Calcul immédiat avec le dernier fix réellement reçu
-     * par le watcher unique.
-     */
     _finishFindNearest(lat,lng,acc);
 
-    /*
-     * Le centrage reste secondaire : il ne bloque ni le résultat,
-     * ni le point bleu.
-     */
     map.easeTo({
       center:[lng,lat],
       zoom:Math.max(map.getZoom(),18),
@@ -1656,10 +1611,6 @@ function findNearest(){
     setTimeout(refine,900);
   }
 
-  /*
-   * PK? ne lance plus jamais getCurrentPosition().
-   * Il demande un fix récent au watcher GPS existant.
-   */
   _gpsWaitForFix({
     freshMs:3000,
     maxAccuracy:100,
@@ -1854,6 +1805,15 @@ function _finishFindNearest(lat,lng,acc){
   openDetail('📍 Éléments LGV proches',html);
 }
 
+/* ══════════════════════════════════════════════════════════
+   RECHERCHE PK ACCÉLÉRÉE
+   - _nl / _ns pré-normalisés à l'indexation (plus de toLowerCase
+     en boucle à chaque frappe)
+   - Cache : même requête → même résultat instantané
+   - Requête type "234" ou "234+5" → scan PK uniquement
+   - Tri par pertinence : exact > préfixe > contenu
+   - Early exit dès que l'on a assez de candidats
+   ══════════════════════════════════════════════════════════ */
 function _initSearch(){
   var inp=document.getElementById('search-input');
   var res=document.getElementById('search-res');
@@ -1863,12 +1823,7 @@ function _initSearch(){
     var q=inp.value.trim();
     if(q.length<2){res.style.display='none';return;}
     timer=setTimeout(function(){
-      var ql=q.toLowerCase().replace(/\s*\+\s*/g,'+');
-      var hits=searchIndex.filter(function(x){
-        return x.label.toLowerCase().replace(/\s*\+\s*/g,'+').includes(ql)||
-               (x.sub||'').toLowerCase().replace(/\s*\+\s*/g,'+').includes(ql);
-      });
-      hits=hits.slice(0,12);
+      var hits=_searchHits(q);
       if(!hits.length){res.style.display='none';return;}
       res.innerHTML=hits.map(function(h,i){
         return'<div class="sr-item" onclick="goToResult('+i+')">'+
@@ -1876,11 +1831,38 @@ function _initSearch(){
           '<span><b>'+esc(h.label)+'</b>'+(h.sub?'<br><small style="color:#888">'+esc(h.sub)+'</small>':'')+'</span></div>';
       }).join('');
       res._hits=hits;res.style.display='block';
-    },180);
+    },120);
   });
   inp.addEventListener('keydown',function(e){if(e.key==='Escape')res.style.display='none';});
   document.addEventListener('click',function(e){if(!e.target.closest('#search-wrap'))res.style.display='none';});
 }
+
+function _searchHits(q){
+  if(q===_searchLastQ)return _searchLastHits;
+  var ql=_norm(q);
+  var isPKQ=_pkIsLikely.test(ql);
+  var hits=[],max=12,soft=max*3;
+  var idx=searchIndex;
+  for(var i=0;i<idx.length;i++){
+    var x=idx[i];
+    if(isPKQ && x.type!=='PK')continue;
+    if(x._nl.indexOf(ql)>=0 || (x._ns && x._ns.indexOf(ql)>=0)){
+      hits.push(x);
+      if(hits.length>=soft)break;
+    }
+  }
+  if(hits.length>1){
+    hits.sort(function(a,b){
+      var a0=a._nl===ql?0:(a._nl.indexOf(ql)===0?1:2);
+      var b0=b._nl===ql?0:(b._nl.indexOf(ql)===0?1:2);
+      return a0-b0;
+    });
+  }
+  hits=hits.slice(0,max);
+  _searchLastQ=q;_searchLastHits=hits;
+  return hits;
+}
+
 function goToResult(idx){
   var hits=document.getElementById('search-res')._hits||[];
   var h=hits[idx];if(!h||!h.geom)return;
@@ -1898,35 +1880,56 @@ function _openDetailFromSearch(h){
   else if(h.type==='PAM')openDetailPAM(h.props);
   else if(h.type==='Accès')openDetailAcces(h.props);
 }
+
 var _pkLoaded=false;
 function addPKtoIndex(fc){
   if(_pkLoaded)return;_pkLoaded=true;
   (fc.features||[]).forEach(function(f){
-    searchIndex.push({type:'PK',label:c(f.properties._pk_label||f.properties.Name),
-      sub:c(f.properties._voie||''),geom:f.geometry});
+    var lbl=c(f.properties._pk_label||f.properties.Name);
+    if(!lbl)return;
+    var sub=c(f.properties._voie||'');
+    searchIndex.push({
+      type:'PK',label:lbl,sub:sub,geom:f.geometry,
+      _nl:_norm(lbl),_ns:_norm(sub)
+    });
   });
+  _searchInvalidate();
 }
 function addPKHectoToIndex(fc){
   if(_pkHLoaded||!fc)return;_pkHLoaded=true;
   (fc.features||[]).forEach(function(f){
-    searchIndex.push({type:'PK',label:c(f.properties._pk_label||f.properties.Name),
-      sub:c(f.properties._voie||''),geom:f.geometry});
+    var lbl=c(f.properties._pk_label||f.properties.Name);
+    if(!lbl)return;
+    var sub=c(f.properties._voie||'');
+    searchIndex.push({
+      type:'PK',label:lbl,sub:sub,geom:f.geometry,
+      _nl:_norm(lbl),_ns:_norm(sub)
+    });
   });
+  _searchInvalidate();
 }
 var _bsiTimer=null;
 function _debounceBSI(){clearTimeout(_bsiTimer);_bsiTimer=setTimeout(buildSearchIndex,250);}
 function buildSearchIndex(){
+  /* On garde les entrées PK (déjà normalisées) et on reconstruit les autres */
   searchIndex=searchIndex.filter(function(x){return x.type==='PK';});
+  function push(type,label,sub,geom,props){
+    searchIndex.push({
+      type:type,label:label,sub:sub,geom:geom,props:props,
+      _nl:_norm(label),_ns:_norm(sub)
+    });
+  }
   layerData.oa.forEach(function(f){var p=f.props;
-    searchIndex.push({type:'OA',label:c(p.CODE_OBJET)+' – '+c(p.LIBELLE_LO),sub:c(p._pk_fmt),geom:f.geom,props:p});});
+    push('OA',c(p.CODE_OBJET)+' – '+c(p.LIBELLE_LO),c(p._pk_fmt),f.geom,p);});
   layerData.oh.forEach(function(f){var p=f.props;
-    searchIndex.push({type:'OH',label:c(p.code_objet)+' – '+c(p.libelle_ob),sub:c(p._pk_fmt),geom:f.geom,props:p});});
+    push('OH',c(p.code_objet)+' – '+c(p.libelle_ob),c(p._pk_fmt),f.geom,p);});
   layerData.acces.forEach(function(f){var p=f.props;
-    searchIndex.push({type:'Accès',label:c(p.NOM_ACCES||p.Name||''),
-      sub:c(p.AXE)+' PK '+c(p.PK),geom:f.geom,props:p});});
+    push('Accès',c(p.NOM_ACCES||p.Name||''),
+      c(p.AXE)+' PK '+c(p.PK),f.geom,p);});
   layerData.pam.forEach(function(f){var p=f.props;
-    searchIndex.push({type:'PAM',label:c(p.libelle||'PAM'),
-      sub:[c(p.axe),c(p.pk_ef||p.pk_gc)].filter(Boolean).join(' • '),geom:f.geom,props:p});});
+    push('PAM',c(p.libelle||'PAM'),
+      [c(p.axe),c(p.pk_ef||p.pk_gc)].filter(Boolean).join(' • '),f.geom,p);});
+  _searchInvalidate();
 }
 
 var _tblOpen=false,_tblSortCol=null,_tblSortAsc=true;
@@ -2288,7 +2291,6 @@ window.addEventListener('online',function(){updateNetBadge();showNetToast('🟢 
 window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴 Hors ligne – les fonds distants peuvent être indisponibles');});
 
 // Appui long sur GPS pour arrêter
-
 (function(){
   var b=document.getElementById('gps-fab');if(!b)return;
   var timer=null,longPressed=false;
