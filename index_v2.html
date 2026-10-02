@@ -18,10 +18,10 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow:hidden;max-width:100vw;width:100%;height:100%;height:100dvh}
-body{font-family:"Segoe UI",Arial,sans-serif;background:#1a1a2e;overscroll-behavior:none}
+html{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:#d8e0e8}
+body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:#d8e0e8;overscroll-behavior:none;font-family:"Segoe UI",Arial,sans-serif}
 button,a,[onclick]{touch-action:manipulation}
-#map{position:fixed;inset:0;width:100%;height:100%;height:100dvh;z-index:1}
+#map{position:absolute;inset:0;width:100%;height:100%;min-width:100%;min-height:100%;background:#d8e0e8;z-index:1}
 #loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   background:white;padding:24px 36px;border-radius:12px;
   box-shadow:0 4px 24px rgba(0,0,0,.35);z-index:9999;text-align:center;
@@ -45,7 +45,7 @@ button,a,[onclick]{touch-action:manipulation}
 .mlpop img:hover{transform:scale(1.03)}
 .btn-sp{display:block;margin-top:7px;text-align:center;background:#0078d4;color:white!important;
   padding:5px 10px;border-radius:5px;text-decoration:none;font-size:11.5px;font-weight:600}
-#layers-panel{position:absolute;top:60px;left:0;z-index:800;background:white;
+#layers-panel{position:absolute;top:60px;left:env(safe-area-inset-left,0px);z-index:800;background:white;
   border-radius:0 8px 8px 0;box-shadow:2px 2px 12px rgba(0,0,0,.25);
   transition:transform .25s;transform:translateX(-100%);width:230px;will-change:transform}
 #layers-panel.open{transform:translateX(0)}
@@ -60,7 +60,7 @@ button,a,[onclick]{touch-action:manipulation}
 .bm-btn{flex:1;min-width:60px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;
   padding:5px 4px;font-size:11px;cursor:pointer;text-align:center;transition:background .15s}
 .bm-btn.active{background:#1a1a2e;color:white;border-color:#1a1a2e}
-#layers-btn{position:absolute;top:60px;left:0;z-index:799;background:#1a1a2e;color:white;
+#layers-btn{position:absolute;top:60px;left:env(safe-area-inset-left,0px);z-index:799;background:#1a1a2e;color:white;
   border:none;border-radius:0 6px 6px 0;padding:8px 10px;cursor:pointer;font-size:18px;
   box-shadow:2px 2px 8px rgba(0,0,0,.3)}
 #search-wrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;
@@ -89,7 +89,7 @@ button,a,[onclick]{touch-action:manipulation}
 #tbl-scroll tr:hover td{background:#f9fbe7}
 .tbl-zoom{cursor:pointer;background:#e3f2fd;border:none;border-radius:3px;padding:2px 6px;
   font-size:11px;color:#1565c0}
-#fab-bar{position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+10px));right:10px;
+#fab-bar{position:absolute;bottom:max(36px,calc(env(safe-area-inset-bottom,0px)+10px));right:max(10px,env(safe-area-inset-right,0px));
   z-index:800;display:flex;flex-direction:column;gap:6px}
 .fab{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
   box-shadow:0 3px 10px rgba(0,0,0,.3);font-size:18px;display:flex;align-items:center;justify-content:center;
@@ -256,9 +256,10 @@ button,a,[onclick]{touch-action:manipulation}
   .fab{width:44px;height:44px;font-size:18px}
 }
 
-:root{--app-height:100dvh;--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
-html,body{height:var(--app-height)!important;min-height:var(--app-height);overscroll-behavior:none}
-#map{height:var(--app-height)!important}
+:root{--app-height:100vh;--app-width:100vw;--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+@supports(height:100dvh){:root{--app-height:100dvh}}
+html,body{width:var(--app-width)!important;height:var(--app-height)!important;min-width:var(--app-width);min-height:var(--app-height);max-width:var(--app-width);max-height:var(--app-height);overscroll-behavior:none;overflow:hidden}
+#map{width:var(--app-width)!important;height:var(--app-height)!important}
 button,input,select,a{-webkit-tap-highlight-color:transparent}
 
 @media(display-mode:standalone){
@@ -344,7 +345,7 @@ button,input,select,a{-webkit-tap-highlight-color:transparent}
 <script>
 /* v3.90 : version terrain Samsung A56 – corrected positioning + fast PK search */
 (function(){
-  var V='v3.91-live-gps-blue-dot';
+  var V='v3.92-stable-viewport-gps';
   try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
   if('serviceWorker' in navigator){
     window.addEventListener('load',function(){
@@ -357,17 +358,53 @@ button,input,select,a{-webkit-tap-highlight-color:transparent}
 </script>
 <script>
 
-function updateAppViewportHeight(){
-  var h=window.visualViewport?window.visualViewport.height:window.innerHeight;
-  document.documentElement.style.setProperty('--app-height',Math.round(h)+'px');
-  if(window.map&&typeof map.resize==='function')requestAnimationFrame(function(){map.resize();});
+var _viewportState={w:0,h:0,timer:null,orientation:(screen.orientation&&screen.orientation.type)||''};
+function _viewportSize(){
+  var de=document.documentElement;
+  var w=Math.max(1,Math.round(de.clientWidth||window.innerWidth||screen.width));
+  var h=Math.max(1,Math.round(window.innerHeight||de.clientHeight||screen.height));
+  return{w:w,h:h};
 }
-updateAppViewportHeight();
-window.addEventListener('resize',updateAppViewportHeight,{passive:true});
-window.addEventListener('orientationchange',function(){setTimeout(updateAppViewportHeight,150);setTimeout(updateAppViewportHeight,500);});
-if(window.visualViewport)window.visualViewport.addEventListener('resize',updateAppViewportHeight,{passive:true});
+function updateAppViewportHeight(force){
+  var active=document.activeElement;
+  var editing=active&&/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+  if(editing&&!force)return;
+  var size=_viewportSize();
+  if(!force&&Math.abs(size.w-_viewportState.w)<2&&Math.abs(size.h-_viewportState.h)<2)return;
+  _viewportState.w=size.w;_viewportState.h=size.h;
+  document.documentElement.style.setProperty('--app-width',size.w+'px');
+  document.documentElement.style.setProperty('--app-height',size.h+'px');
+  document.documentElement.style.width=size.w+'px';
+  document.documentElement.style.height=size.h+'px';
+  document.body.style.width=size.w+'px';
+  document.body.style.height=size.h+'px';
+  if(window.map&&typeof map.resize==='function'){
+    requestAnimationFrame(function(){map.resize();requestAnimationFrame(function(){map.resize();});});
+  }
+}
+function scheduleViewportUpdate(force,delay){
+  clearTimeout(_viewportState.timer);
+  _viewportState.timer=setTimeout(function(){updateAppViewportHeight(!!force);},delay||60);
+}
+updateAppViewportHeight(true);
+window.addEventListener('resize',function(){scheduleViewportUpdate(false,80);},{passive:true});
+window.addEventListener('orientationchange',function(){
+  scheduleViewportUpdate(true,120);
+  setTimeout(function(){updateAppViewportHeight(true);},450);
+  setTimeout(function(){updateAppViewportHeight(true);},900);
+},{passive:true});
+window.addEventListener('pageshow',function(){scheduleViewportUpdate(true,60);},{passive:true});
+document.addEventListener('fullscreenchange',function(){scheduleViewportUpdate(true,60);},{passive:true});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',function(){
+    var active=document.activeElement;
+    if(active&&/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))return;
+    scheduleViewportUpdate(false,120);
+  },{passive:true});
+}
+document.addEventListener('focusout',function(){scheduleViewportUpdate(true,180);},{passive:true});
 
-var APP_VER = 'v3.91-live-gps-blue-dot';
+var APP_VER = 'v3.92-stable-viewport-gps';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
