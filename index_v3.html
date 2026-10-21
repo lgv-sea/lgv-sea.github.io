@@ -302,28 +302,14 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* v3.71 : GPS permission-aware + suivi fiable + fond satellite */
+/* v4.0 : conserver le service worker et les caches utiles au mode terrain hors-ligne.
+   Ne jamais désinscrire automatiquement le service worker au démarrage. */
 (function(){
-  var V='v3.73-datzd-fix';
-  try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
-  try{
-    if('serviceWorker' in navigator){
-      var already=false; try{already=sessionStorage.getItem('lgv_sw_cleanup_done')==='1';}catch(e){}
-      if(!already){
-        try{sessionStorage.setItem('lgv_sw_cleanup_done','1');}catch(e){}
-        Promise.all([
-          navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}),
-          ('caches' in window)?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}):Promise.resolve()
-        ]).then(function(){
-          try{localStorage.removeItem('lgv_map_pos');localStorage.removeItem('lgv_cached_v3');}catch(e){}
-        });
-      }
-    }
-  }catch(e){}
+  try{sessionStorage.setItem('lgv_app_ver','v4.0-terrain-gps-pk1m');}catch(e){}
 })();
 </script>
 <script>
-var APP_VER = 'v3.78-terrain-fast-pk';
+var APP_VER = 'v4.0-terrain-gps-pk1m';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -1141,14 +1127,17 @@ function _gpsHandlePosition(pos, source){
     console.warn('GPS accuracy hors seuil:', acc);
     return;
   }
+  var fixTime = Number(pos.timestamp) || Date.now();
+  // Refuser les corrections anciennes ou hors ordre : elles figent/déplacent le point bleu.
+  if (g.last && fixTime < (g.last.timestamp || 0)) return;
   var p = {
     lat: +co.latitude,
     lng: +co.longitude,
     accuracy: acc,
     speed: isFinite(co.speed)?+co.speed:null,
     heading: isFinite(co.heading)?+co.heading:null,
-    timestamp: pos.timestamp || Date.now(),
-    source: source || 'poll'
+    timestamp: fixTime,
+    source: source || 'watch'
   };
   var first = !g.last;
   g.last = p;
@@ -1190,7 +1179,7 @@ function _gpsTick(){
       if(e && e.code === 3) return; // timeout, on retentera
       _gpsHandleError(e);
     },
-    { enableHighAccuracy:true, maximumAge:2000, timeout:10000 }
+    { enableHighAccuracy:true, maximumAge:0, timeout:10000 }
   );
 }
 
@@ -1493,12 +1482,12 @@ function _parseVoie(v){
 }
 
 function _finishFindNearest(lat,lng,acc){
-  var npk=null, pkPrec='1 m';
+  var npk=null, pkPrec='maillage PK 1 m';
 
   // 1) Très rapide sur le terrain : interroger seulement une petite zone écran autour du GPS.
   try{
     var px=map.project([lng,lat]);
-    var ids=['pkm1-symbol','pkm10-symbol'].filter(function(id){return !!map.getLayer(id);});
+    var ids=['pkm1-symbol'].filter(function(id){return !!map.getLayer(id);});
     var rr=ids.length?map.queryRenderedFeatures([[px.x-70,px.y-70],[px.x+70,px.y+70]],{layers:ids}):[];
     rr.forEach(function(f){
       if(!f.geometry||f.geometry.type!=='Point')return;
@@ -1509,9 +1498,9 @@ function _finishFindNearest(lat,lng,acc){
 
   // 2) Si aucun point n'est rendu, interroger les tuiles PK métriques déjà chargées.
   // Filtre spatial immédiat avant Haversine pour éviter de calculer sur tous les PK.
-  if(!npk){
+  {
     try{
-      var pkmF=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'}),bestD=Infinity;
+      var pkmF=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'}),bestD=npk?npk.d:Infinity;
       var cos=Math.max(.2,Math.cos(lat*Math.PI/180)),dLat=.003,dLng=.003/cos;
       for(var i=0;i<pkmF.length;i++){
         var f=pkmF[i]; if(!f.geometry||f.geometry.type!=='Point')continue;
@@ -1562,7 +1551,7 @@ function _finishFindNearest(lat,lng,acc){
   }
   var html='<div style="padding:12px;display:flex;flex-direction:column;gap:10px">';
   var voieInfo=pkVoie?(pkP.b?(' · Voie <b>'+c(pkVoie)+'</b> → branche <b>'+pkP.b.toUpperCase()+'</b> côté <b>'+pkP.s+'</b>'):''):'' ;
-  html+='<p style="font-size:11px;color:#888;margin:0">📍 GPS : ±'+Math.round(acc)+' m · PK : précision '+pkPrec+voieInfo+'</p>';
+  html+='<p style="font-size:11px;color:#888;margin:0">📍 GPS : ±'+Math.round(acc)+' m · PK : couche '+pkPrec+' (GPS indépendant)'+voieInfo+'</p>';
 
   if(npk){
     var p=npk.f.props,co=npk.f.geom.coordinates;
