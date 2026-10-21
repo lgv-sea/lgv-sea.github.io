@@ -229,6 +229,36 @@ button,a,[onclick]{touch-action:manipulation}
   #search-wrap{left:40px;width:calc(100vw - 100px)}
   .fab{width:44px;height:44px;font-size:18px}
 }
+
+#terrain-status{position:absolute;top:65px;left:50%;transform:translateX(-50%);z-index:801;background:white;color:#14233b;padding:8px 12px;border-radius:12px;box-shadow:0 2px 10px #0003;font-size:13px;max-width:calc(100vw - 100px);pointer-events:none}
+#terrain-status.bad{background:#fff1dc;color:#803b00}
+@media(max-width:768px){
+ #search-wrap{left:56px;width:calc(100vw - 68px);max-width:none}
+ #search-input{min-height:48px;border-radius:14px}
+ #layers-btn{min-width:48px;min-height:48px;padding:8px}
+ #search-res{max-height:45dvh;overscroll-behavior:contain}
+ .sr-item{min-height:52px;font-size:15px;padding:10px 12px}
+ #detail-panel{height:48dvh;border-radius:18px 18px 0 0}
+ #detail-panel.dp-full{height:84dvh}
+ #detail-header{min-height:48px}
+ #detail-header button,#tbl-close{min-width:44px;min-height:44px}
+ #detail-body{font-size:15px;overscroll-behavior:contain}
+ #detail-body button,#detail-body a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:14px!important;padding:8px 12px!important}
+ .dp-v,.dp-sub{font-size:14px}.dp-k{font-size:13px;color:#555}.dp-sec-hd{font-size:11px;color:#666}
+ .fab{width:48px!important;height:48px!important}
+ #fab-bar{gap:7px;bottom:calc(env(safe-area-inset-bottom,0px) + 28px)}
+ body.terrain-detail #fab-bar{display:none}
+ body.terrain-detail #gps-recenter-banner{display:none!important}
+ #terrain-status{top:calc(env(safe-area-inset-top,0px) + 65px);font-size:12px}
+ #tbl-panel.open{height:64dvh}
+ #net-toast{max-width:92vw;white-space:normal;text-align:center}
+}
+@media(max-height:500px) and (orientation:landscape){
+ #detail-panel{top:0;bottom:0;right:0;left:auto;width:52vw;max-width:52vw;height:100dvh!important;transform:translateX(100%)}
+ #detail-panel.open{transform:translateX(0)}
+ #fab-bar{flex-direction:row;flex-wrap:wrap;max-width:95vw;justify-content:flex-end}
+ #terrain-status{left:8px;transform:none;max-width:40vw;top:66px}
+}
 </style>
 </head>
 <body>
@@ -302,14 +332,28 @@ button,a,[onclick]{touch-action:manipulation}
 <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.0/dist/togeojson.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
-/* v4.0 : conserver le service worker et les caches utiles au mode terrain hors-ligne.
-   Ne jamais désinscrire automatiquement le service worker au démarrage. */
+/* v3.71 : GPS permission-aware + suivi fiable + fond satellite */
 (function(){
-  try{sessionStorage.setItem('lgv_app_ver','v4.0-terrain-gps-pk1m');}catch(e){}
+  var V='v3.73-datzd-fix';
+  try{sessionStorage.setItem('lgv_app_ver',V);}catch(e){}
+  try{
+    if('serviceWorker' in navigator){
+      var already=false; try{already=sessionStorage.getItem('lgv_sw_cleanup_done')==='1';}catch(e){}
+      if(!already){
+        try{sessionStorage.setItem('lgv_sw_cleanup_done','1');}catch(e){}
+        Promise.all([
+          navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}),
+          ('caches' in window)?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}):Promise.resolve()
+        ]).then(function(){
+          try{localStorage.removeItem('lgv_map_pos');localStorage.removeItem('lgv_cached_v3');}catch(e){}
+        });
+      }
+    }
+  }catch(e){}
 })();
 </script>
 <script>
-var APP_VER = 'v4.0-terrain-gps-pk1m';
+var APP_VER = 'v3.82-pk-index';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -473,6 +517,7 @@ function clearFocusGeom(){
   _focusActive=false;
 }
 function focusGeom(geom,opts){
+ if(window._gps&&window._gps.active){window._gps.following=false;_gpsShowRecenterBanner();}
   clearFocusGeom();
   if(!geom)return;
   opts=opts||{};
@@ -1043,7 +1088,7 @@ window._gps = {
 
 var GPS_INTERVAL_MS = 2500;
 var GPS_STALE_MS = 25000;
-var GPS_MAX_ACCURACY = 3000;
+var GPS_MAX_ACCURACY = 10000;
 
 function _gpsIsActive(){return window._gps.active;}
 
@@ -1121,30 +1166,32 @@ function _gpsHandlePosition(pos, source){
   if(!g.active) return;
   if(!pos || !pos.coords) return;
   var co = pos.coords;
-  if(!isFinite(co.latitude)||!isFinite(co.longitude))return;
+  if(!Number.isFinite(co.latitude)||!Number.isFinite(co.longitude)||Math.abs(co.latitude)>90||Math.abs(co.longitude)>180)return;
+  var ts=Number(pos.timestamp);
+  if(!Number.isFinite(ts)||Date.now()-ts>15000||ts>Date.now()+2000)return;
+  if(g.last&&ts<=g.last.timestamp)return;
   var acc = +co.accuracy;
   if(!isFinite(acc) || acc<=0 || acc>GPS_MAX_ACCURACY){
     console.warn('GPS accuracy hors seuil:', acc);
     return;
   }
-  var fixTime = Number(pos.timestamp) || Date.now();
-  // Refuser les corrections anciennes ou hors ordre : elles figent/déplacent le point bleu.
-  if (g.last && fixTime < (g.last.timestamp || 0)) return;
   var p = {
     lat: +co.latitude,
     lng: +co.longitude,
     accuracy: acc,
-    speed: isFinite(co.speed)?+co.speed:null,
-    heading: isFinite(co.heading)?+co.heading:null,
-    timestamp: fixTime,
-    source: source || 'watch'
+    speed: co.speed!=null&&Number.isFinite(co.speed)?co.speed:null,
+    heading: co.heading!=null&&Number.isFinite(co.heading)?co.heading:null,
+    timestamp: pos.timestamp || Date.now(),
+    source: source || 'poll'
   };
   var first = !g.last;
+  g.errorText='';
   g.last = p;
-  g.lastFixAt = Date.now();
+  g.lastFixAt = p.timestamp;
   _gpsSetData(p);
   _gpsRecenter(p, first);
   _gpsUpdateBadge();
+  if(typeof terrainRefresh==='function' && _nearOpen)terrainRefresh();
   if(first){
     _gpsSetStatus('📍 Position trouvée · suivi actif', true);
     _gpsHideRecenterBanner();
@@ -1153,6 +1200,8 @@ function _gpsHandlePosition(pos, source){
 function _gpsHandleError(e){
   var g=window._gps;
   if(!e) return;
+  g.errorText=e.code===1?'Localisation refusee : autoriser ce site dans le navigateur.':e.code===2?'Position indisponible : verifier la localisation Android.':'GPS sans reponse : recherche toujours active.';
+  _gpsSetStatus(g.errorText,true);
   if(e.code === 1){
     _gpsSetStatus('📍 Autorisation refusée. Vérifiez les paramètres du site.', true);
     _gpsStop(true);
@@ -1179,7 +1228,7 @@ function _gpsTick(){
       if(e && e.code === 3) return; // timeout, on retentera
       _gpsHandleError(e);
     },
-    { enableHighAccuracy:true, maximumAge:0, timeout:10000 }
+    { enableHighAccuracy:true, maximumAge:2000, timeout:10000 }
   );
 }
 
@@ -1194,6 +1243,13 @@ function _gpsStartWatch(){
   if(g.timer){ clearInterval(g.timer); g.timer=null; }
   g.mode = 'watch';
   var session = g.session;
+  if(g.fastSession!==session){
+    g.fastSession=session;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(session===g.session&&g.active&&!g.last)_gpsHandlePosition(pos,'initial');
+    },function(e){if(session===g.session&&g.active&&!g.last)_gpsHandleError(e);},
+    {enableHighAccuracy:false,maximumAge:10000,timeout:5000});
+  }
   try{
     g.watchId = navigator.geolocation.watchPosition(
       function(pos){
@@ -1207,9 +1263,9 @@ function _gpsStartWatch(){
           _gpsStop(true);
           return;
         }
-        // Timeout / unavailable : on ignore, le watch retentera.
+        _gpsHandleError(e);
       },
-      { enableHighAccuracy:true, maximumAge:0, timeout:30000 }
+      { enableHighAccuracy:true, maximumAge:2000, timeout:12000 }
     );
   }catch(e){
     console.error('watchPosition error:', e);
@@ -1252,7 +1308,7 @@ function _gpsAttachPermissionListener(){
       if(!g.active) return;
       if(newState === 'granted'){
         // Permission devient permanente : on bascule sur polling (plus fiable)
-        if(g.mode === 'watch') _gpsStartPolling();
+        if(g.mode !== 'watch') _gpsStartWatch();
       } else if(newState === 'denied'){
         _gpsSetStatus('📍 Autorisation révoquée', true);
         _gpsStop(true);
@@ -1282,8 +1338,9 @@ function _gpsStart(){
   _gpsSetStatus('📡 Recherche de votre position…', true);
   _gpsUpdateBadge();
 
+  var permissionSession=g.session;
   _gpsReadPermission().then(function(state){
-    if(!g.active) return;
+    if(!g.active||permissionSession!==g.session)return;
     g.permission = state;
     _gpsAttachPermissionListener();
 
@@ -1294,7 +1351,7 @@ function _gpsStart(){
     }
     if(state === 'granted'){
       // Cas PWA ou utilisateur a mémorisé « Toujours autoriser »
-      _gpsStartPolling();
+      _gpsStartWatch();
     } else {
       // Cas navigateur, permission encore en 'prompt'
       // watchPosition = UN SEUL prompt pour toute la session
@@ -1400,59 +1457,18 @@ function _nearestOf(lat,lng,features){
   return best;
 }
 function _nearestN(lat,lng,features,n){
-  var scored=[];
-  features.forEach(function(f){
-    if(!f.geom||f.geom.type!=='Point')return;
-    var d=_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0]);
-    scored.push({f:f,d:d});
-  });
-  scored.sort(function(a,b){return a.d-b.d;});
-  return scored.slice(0,n);
+ var best=[];if(n<=0)return best;
+ features.forEach(function(f){
+  if(!f.geom||f.geom.type!=='Point')return;
+  var d=_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0]);
+  if(!Number.isFinite(d))return;
+  if(best.length===n&&d>=best[best.length-1].d)return;
+  var i=0;while(i<best.length&&best[i].d<=d)i++;
+  best.splice(i,0,{f:f,d:d});if(best.length>n)best.pop();
+ });return best;
 }
 function _dStr(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
-function findNearest(){
-  if(!navigator.geolocation){showNetToast('📍 Géolocalisation non disponible.');return;}
-
-  // Terrain : réutiliser immédiatement le fix déjà corrigé/affiché s'il est récent.
-  var g=window._gps||{};
-  var now=Date.now();
-  if(g.last && isFinite(g.last.lat) && isFinite(g.last.lng) &&
-     (now-(g.lastFixAt||0))<=10000 && isFinite(g.last.accuracy) && g.last.accuracy<=30){
-    _finishFindNearest(g.last.lat,g.last.lng,g.last.accuracy);
-    return;
-  }
-
-  openDetail('📍 Éléments LGV proches',
-    '<div style="padding:18px;text-align:center;color:#777">'+
-    '<p style="font-size:14px;font-weight:700;margin:0">📡 Position terrain…</p>'+
-    '<p style="font-size:10px;margin-top:7px;color:#999">Recherche rapide du meilleur correctif GPS</p></div>');
-
-  var done=false,wid=null,best=null,timer=null;
-  function stop(){if(wid!==null){navigator.geolocation.clearWatch(wid);wid=null;}if(timer){clearTimeout(timer);timer=null;}}
-  function accept(pos){
-    if(done||!pos||!pos.coords)return;
-    var c=pos.coords,acc=Number(c.accuracy);
-    if(!isFinite(acc)||!isFinite(c.latitude)||!isFinite(c.longitude))return;
-    if(!best||acc<best.acc)best={lat:c.latitude,lng:c.longitude,acc:acc};
-    // 20 m est un bon compromis terrain : le PK final reste le point PK 1 m géométriquement le plus proche.
-    if(acc<=20)finish(best);
-  }
-  function finish(fix){
-    if(done||!fix)return;done=true;stop();
-    // Pas de flyTo/idle : le calcul ne dépend pas de l'affichage et reste instantané.
-    _finishFindNearest(fix.lat,fix.lng,fix.acc);
-  }
-
-  // D'abord un fix récent du navigateur, sans bloquer l'interface.
-  navigator.geolocation.getCurrentPosition(accept,function(){},{enableHighAccuracy:true,timeout:2500,maximumAge:5000});
-  // Puis quelques secondes de haute précision, uniquement si nécessaire.
-  wid=navigator.geolocation.watchPosition(accept,function(){if(best)finish(best);},{enableHighAccuracy:true,timeout:8000,maximumAge:0});
-  timer=setTimeout(function(){
-    if(best)finish(best);
-    else{done=true;stop();closeDetail();showNetToast('📍 Position GPS indisponible');}
-  },6000);
-}
-window.findNearest=findNearest;
+var findNearest;
 
 function _sideNum(v){var m=String(v||'').match(/[12]/);return m?m[0]:'';}
 
@@ -1482,44 +1498,9 @@ function _parseVoie(v){
 }
 
 function _finishFindNearest(lat,lng,acc){
-  var npk=null, pkPrec='maillage PK 1 m';
-
-  // 1) Très rapide sur le terrain : interroger seulement une petite zone écran autour du GPS.
-  try{
-    var px=map.project([lng,lat]);
-    var ids=['pkm1-symbol'].filter(function(id){return !!map.getLayer(id);});
-    var rr=ids.length?map.queryRenderedFeatures([[px.x-70,px.y-70],[px.x+70,px.y+70]],{layers:ids}):[];
-    rr.forEach(function(f){
-      if(!f.geometry||f.geometry.type!=='Point')return;
-      var co=f.geometry.coordinates,d=_haversine(lat,lng,co[1],co[0]);
-      if(!npk||d<npk.d)npk={f:{props:f.properties||{},geom:f.geometry},d:d};
-    });
-  }catch(e){}
-
-  // 2) Si aucun point n'est rendu, interroger les tuiles PK métriques déjà chargées.
-  // Filtre spatial immédiat avant Haversine pour éviter de calculer sur tous les PK.
-  {
-    try{
-      var pkmF=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'}),bestD=npk?npk.d:Infinity;
-      var cos=Math.max(.2,Math.cos(lat*Math.PI/180)),dLat=.003,dLng=.003/cos;
-      for(var i=0;i<pkmF.length;i++){
-        var f=pkmF[i]; if(!f.geometry||f.geometry.type!=='Point')continue;
-        var co=f.geometry.coordinates;
-        if(Math.abs(co[1]-lat)>dLat||Math.abs(co[0]-lng)>dLng)continue;
-        var d=_haversine(lat,lng,co[1],co[0]);
-        if(d<bestD){bestD=d;npk={f:{props:f.properties||{},geom:f.geometry},d:d};}
-      }
-    }catch(e){}
-  }
-
-  if(!npk){
-    openDetail('📍 PK le plus proche',
-      '<div style="padding:20px;text-align:center">'+
-      '<div style="font-size:30px">📍</div><p style="font-weight:700">PK métrique non disponible ici</p>'+
-      '<p style="font-size:11px;color:#777">GPS ±'+Math.round(acc)+' m · déplace légèrement la carte ou réessaie.</p></div>');
-    return;
-  }
-
+  var npk=_metricNearest,pkPrec=npk?'référentiel métrique':'indisponible';
+  if(!npk&&_pkHData){npk=_nearestOf(lat,lng,_pkReferenceIndex().hecto);if(npk)pkPrec='repli : repere 100 m';}
+  if(!npk){npk=_nearestOf(lat,lng,layerData.pk);if(npk)pkPrec='repli : repere kilometrique';}
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
   var pkP=_parseVoie(pkVoie);
 
@@ -1542,16 +1523,16 @@ function _finishFindNearest(lat,lng,acc){
     if(pamFiltered.length)pamPool=pamFiltered;
   }
   var npams=_nearestN(lat,lng,pamPool,3);
-    var ndatzd=_nearestN(lat,lng,layerData.datzd,3);
+    var ndatzd=_nearestN(lat,lng,layerData.datzd,3).filter(function(n){return n.d<=1000;});
 
   function zoomBtn(coords,z,label){
     var co=JSON.stringify(coords);
-    return '<button onclick="map.flyTo({center:'+co+',zoom:'+z+'});closeDetail()" '+
+    return '<button onclick="window._gps.following=false;_gpsShowRecenterBanner();map.flyTo({center:'+co+',zoom:'+z+'});closeDetail()" '+
       'style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #ccc;cursor:pointer;margin-top:4px">'+label+'</button>';
   }
   var html='<div style="padding:12px;display:flex;flex-direction:column;gap:10px">';
   var voieInfo=pkVoie?(pkP.b?(' · Voie <b>'+c(pkVoie)+'</b> → branche <b>'+pkP.b.toUpperCase()+'</b> côté <b>'+pkP.s+'</b>'):''):'' ;
-  html+='<p style="font-size:11px;color:#888;margin:0">📍 GPS : ±'+Math.round(acc)+' m · PK : couche '+pkPrec+' (GPS indépendant)'+voieInfo+'</p>';
+  html+='<p style="font-size:11px;color:#888;margin:0">📍 GPS : ±'+Math.round(acc)+' m · PK : '+pkPrec+voieInfo+'</p>';
 
   if(npk){
     var p=npk.f.props,co=npk.f.geom.coordinates;
@@ -1573,6 +1554,14 @@ function _finishFindNearest(lat,lng,acc){
     html+='</div>';
   }else{html+='<div style="padding:8px;color:#aaa">PK : données non chargées</div>';}
 
+  html+='<section style="padding:12px;background:#e8f5e9;border-radius:10px;border-left:4px solid #00843d"><h3>DATZD proches - rayon 1 km</h3>';
+  if(_loading.datzd)html+='<p>Chargement des DATZD...</p>';
+  else if(!layerData.datzd.length)html+='<p>Donnees DATZD indisponibles : distance non verifiable.</p>';
+  else if(!ndatzd.length)html+='<p><b>Plus d’un km</b> : aucun DATZD dans un rayon de 1 000 m.</p>';
+  else ndatzd.forEach(function(n){var p=n.f.props;
+    html+='<div style="padding:12px 0;border-bottom:1px solid #bdd8c5"><b>'+esc(c(p.CODEDUPOIN||p.CODE_POINT||p['Code du point de structure']||'DATZD'))+'</b><br>PK '+esc(c(p.PK_DATZD??p.PK_LRS??p['PK debut']??'---'))+' - '+esc(c(p.VOIE_LRS||p.VOIE_SRC||p.Voie||'Voie non renseignee'))+'<br><b>'+_dStr(n.d)+'</b> a vol d’oiseau'+zoomBtn(n.f.geom.coordinates,19,'Voir sur la carte')+'</div>';
+  });
+  html+='<p style="font-size:12px;margin-top:8px">Distances a vol d’oiseau, pas un itineraire autorise. Respecter les procedures de securite ferroviaire.</p></section>';
   if(naccs.length){
     naccs.forEach(function(nacc,i){
       var p=nacc.f.props,co=nacc.f.geom.coordinates;
@@ -2063,6 +2052,222 @@ window.addEventListener('offline',function(){updateNetBadge();showNetToast('🔴
 
 // Init badge
 _gpsUpdateBadge();
+</script>
+
+<script>
+var _metricNearest=null,_nearOpen=false,_nearBusy=false,_nearToken=0,_lastNear=0,_searchToken=0;
+var _tileCache=new Map(),_decoder=null;
+function terrainPK(p){
+ var v=p._pk_label??p.pk??p.PK??p.Name;if(v==null)return null;
+ var t=String(v).trim().replace(',','.');var m=t.match(/(?:PK\s*)?(\d+)\s*\+\s*(\d{1,3})(?!\d)/i);
+ if(m)return Number(m[1])*1000+Number(m[2]);
+ if(/^\d+(\.\d+)?$/.test(t)){var n=Number(t);return Math.round(n>=1000?n:n*1000);}return null;
+}
+function terrainLabel(n){return Math.floor(n/1000)+'+'+String(n%1000).padStart(3,'0');}
+function terrainQuery(q){
+ var t=q.trim().replace(',','.'),m=t.match(/^(?:PK\s*)?(\d+)\s*\+\s*(\d{1,3})(?:\s+([A-Za-z0-9 ]+))?$/i);
+ if(m)return {m:Number(m[1])*1000+Number(m[2]),voie:(m[3]||'').trim()};
+ m=t.match(/^(?:PK\s*)?(\d+)\.(\d{1,3})(?:\s+([A-Za-z0-9 ]+))?$/i);
+ return m?{m:Number(m[1])*1000+Number(m[2].padEnd(3,'0')),voie:(m[3]||'').trim()}:null;
+}
+function terrainVoie(p,q){if(!q)return true;var a=_parseVoie(p._voie||p.voie||p.VOIE||''),b=_parseVoie(q);return a.b===b.b&&(!b.s||a.s===b.s);}
+
+// Index of reference markers, rebuilt only when loaded arrays change.
+var _pkIndexState=null,_metricState={dirty:true,at:0,items:[],byPK:new Map()};
+function _pkReferenceIndex(){
+ var a=(_pkHData&&_pkHData.features)||[],b=layerData.pk||[];
+ if(_pkIndexState&&_pkIndexState.a===a&&_pkIndexState.b===b&&_pkIndexState.na===a.length&&_pkIndexState.nb===b.length)return _pkIndexState;
+ var groups=new Map(),hecto=[];
+ function add(f){
+  if(!f.geom||f.geom.type!=='Point')return;
+  var m=terrainPK(f.props),v=String(f.props._voie||f.props.voie||f.props.VOIE||'');
+  if(m==null||!v)return;if(!groups.has(v))groups.set(v,[]);groups.get(v).push({m:m,f:f});
+ }
+ a.forEach(function(f){var x={props:f.properties||{},geom:f.geometry};hecto.push(x);add(x);});b.forEach(add);
+ groups.forEach(function(fs){fs.sort(function(x,y){return x.m-y.m;});});
+ _pkIndexState={a:a,b:b,na:a.length,nb:b.length,groups:groups,hecto:hecto};return _pkIndexState;
+}
+function terrainLoadedMetrics(){
+ var st=_metricState,now=Date.now();
+ if(!st.dirty||now-st.at<1500)return st.items;
+ if(map.isMoving&&map.isMoving())return st.items;
+ st.at=now;
+ try{
+  var fs=map.querySourceFeatures('pk_metric',{sourceLayer:'pk_metric'}),items=[],byPK=new Map(),seen=new Set();
+  fs.forEach(function(f){
+   if(!f.geometry||f.geometry.type!=='Point')return;
+   var p=f.properties||{},m=terrainPK(p);if(m==null)return;
+   var co=f.geometry.coordinates,k=m+'|'+String(p._voie||p.voie||p.VOIE||'')+'|'+co[0]+'|'+co[1];
+   if(seen.has(k))return;seen.add(k);var x={props:p,geom:f.geometry};items.push(x);
+   if(!byPK.has(m))byPK.set(m,[]);byPK.get(m).push(x);
+  });
+  st.items=items;st.byPK=byPK;st.dirty=false;
+ }catch(e){st.items=[];st.byPK=new Map();}
+ return st.items;
+}
+function terrainExact(q){
+ terrainLoadedMetrics();var hits=[],seen=new Set();
+ function add(f,estimated){
+  var voie=String(f.props._voie||f.props.voie||f.props.VOIE||'Voie non renseignée');
+  var k=voie+':'+f.geom.coordinates.join(',');if(seen.has(k))return;seen.add(k);
+  hits.push({type:estimated?'PK estimé':'PK 1 m',label:'PK '+terrainLabel(q.m),sub:voie+(estimated?' - position interpolée, non certifiée au mètre':' - point du référentiel métrique'),geom:f.geom,props:f.props,estimated:estimated,targetPK:q.m,targetVoie:q.voie});
+ }
+ (_metricState.byPK.get(q.m)||[]).forEach(function(f){if(terrainVoie(f.props,q.voie))add(f,false);});
+ if(hits.length)return Promise.resolve(hits);
+ _pkReferenceIndex().groups.forEach(function(fs,v){
+  if(!terrainVoie(fs[0].f.props,q.voie))return;
+  var l=0,r=fs.length;
+  while(l<r){var mid=(l+r)>>>1;if(fs[mid].m<q.m)l=mid+1;else r=mid;}
+  var lo,hi;
+  if(l<fs.length&&fs[l].m===q.m){lo=hi=fs[l];}else{lo=fs[l-1];hi=fs[l];}
+  if(!lo||!hi||hi.m-lo.m>1100)return;
+  var a=lo.f.geom.coordinates,b=hi.f.geom.coordinates;
+  if(hi.m>lo.m&&_haversine(a[1],a[0],b[1],b[0])>(hi.m-lo.m)*2+50)return;
+  var t=hi.m===lo.m?0:(q.m-lo.m)/(hi.m-lo.m);
+  add({props:Object.assign({},lo.f.props,{_pk_label:terrainLabel(q.m)}),geom:{type:'Point',coordinates:[a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]}},true);
+ });
+ if(!hits.length)return Promise.reject(new Error('PK absent des repères chargés.'));
+ return Promise.resolve(hits);
+}
+function _pkTextHits(q){
+ var hits=[];for(var i=0;i<searchIndex.length&&hits.length<16;i++){
+  var h=searchIndex[i],key=h.label+' '+(h.sub||'');
+  if(h._searchKey!==key){h._searchKey=key;h._searchNorm=key.toLowerCase().replace(/\s*\+\s*/g,'+');}
+  if(h._searchNorm.includes(q))hits.push(h);
+ }return hits;
+}
+function _pkMarkMetricsDirty(){_metricState.dirty=true;}
+map.on('moveend',_pkMarkMetricsDirty);
+map.on('sourcedata',function(e){if(e.sourceId==='pk_metric')_pkMarkMetricsDirty();});
+
+_initSearch=function(){
+ var inp=document.getElementById('search-input'),res=document.getElementById('search-res'),timer;
+ inp.placeholder='PK 225+123, 225.123, DATZD, acces...';inp.setAttribute('enterkeyhint','search');inp.setAttribute('autocapitalize','off');inp.spellcheck=false;
+ function msg(t){res.replaceChildren();var el=document.createElement('div');el.className='sr-item';el.textContent=t;res.appendChild(el);res._hits=[];res.style.display='block';}
+ function display(hits){res._hits=hits;res.innerHTML=hits.map(function(h,i){return '<div class="sr-item" role="button" tabindex="0" onclick="goToResult('+i+')"><span class="sr-badge">'+esc(h.type)+'</span><span><b>'+esc(h.label)+'</b><br><small>'+esc(h.sub||'')+'</small></span></div>';}).join('');res.style.display='block';}
+ inp.addEventListener('input',function(){clearTimeout(timer);var token=++_searchToken,q=inp.value.trim();if(q.length<2){res.style.display='none';return;}
+ timer=setTimeout(async function(){if(token!==_searchToken)return;var parsed=terrainQuery(q);if(parsed){msg('Recherche du point PK exact...');try{var hits=await terrainExact(parsed);if(token!==_searchToken)return;if(hits.length)display(hits);else msg('PK absent des reperes charges.');}catch(e){if(token===_searchToken)msg('Recherche metrique indisponible : '+e.message);}}
+ else{var ql=q.toLowerCase().replace(/\s*\+\s*/g,'+');var hits=_pkTextHits(ql);if(hits.length)display(hits);else msg('Aucun resultat. Pour un PK métrique : 225+123.');}},300);});
+ inp.addEventListener('keydown',function(e){if(e.key==='Escape'){++_searchToken;res.style.display='none';}if(e.key==='Enter'&&res._hits&&res._hits.length===1){e.preventDefault();goToResult(0);inp.blur();}});
+ document.addEventListener('click',function(e){if(!e.target.closest('#search-wrap')){++_searchToken;res.style.display='none';}});
+};
+
+var _oldGo=goToResult,_pkRefineToken=0;
+goToResult=function(i){
+ var h=(document.getElementById('search-res')._hits||[])[i];++_searchToken;
+ if(!h||!(h.type==='PK 1 m'||h.type==='PK estimé')){_oldGo(i);return;}
+ document.getElementById('search-res').style.display='none';document.getElementById('search-input').blur();
+ document.getElementById('search-input').value=h.label;
+ focusGeom(h.geom,{zoom:20});
+ function show(f,estimated){openDetail(esc(h.label),dpHero(estimated?'PK estimé':'PK métrique',h.label,estimated?'Position interpolée : non certifiee au metre':'Point exact du referentiel charge',estimated?'#b36b00':'#cc0000')+dpSec('Localisation',[['Voie',f.props._voie||f.props.voie||f.props.VOIE],['Longitude',f.geom.coordinates[0]],['Latitude',f.geom.coordinates[1]]])+'<p style="padding:14px">'+(estimated?'Le PK métrique exact n\u2019est pas encore disponible. Cette position sert uniquement au reperage.':'La precision du referentiel ne garantit pas la precision GPS du telephone.')+'</p>');}
+ show({props:h.props,geom:h.geom},h.estimated);
+ var token=++_pkRefineToken,tries=0;
+ if(h.estimated){var timer=setInterval(function(){
+  if(token!==_pkRefineToken||!document.getElementById('detail-panel').classList.contains('open')){clearInterval(timer);return;}
+  var found=terrainLoadedMetrics().filter(function(f){return terrainPK(f.props)===h.targetPK&&terrainVoie(f.props,h.targetVoie)&&String(f.props._voie||f.props.voie||f.props.VOIE||'')===String(h.props._voie||h.props.voie||h.props.VOIE||'');});
+  if(found.length){clearInterval(timer);focusGeom(found[0].geom,{zoom:20});show(found[0],false);}
+  else if(++tries>=8)clearInterval(timer);
+ },500);}
+};window.goToResult=goToResult;
+var _oldOpen=openDetail,_oldClose=closeDetail;
+openDetail=function(t,h){if(!String(t).includes('proches')){_nearOpen=false;++_nearToken;}_oldOpen(t,h);document.body.classList.add('terrain-detail');};
+closeDetail=function(){_nearOpen=false;++_nearToken;document.body.classList.remove('terrain-detail');_oldClose();};
+
+var _nearLastPoint=null,_nearLastAccuracy=null,_nearLastMetric=-1;
+function terrainRefresh(){
+ if(!_nearOpen||document.hidden)return;
+ var now=Date.now();
+ if(_lastNear&&now-_lastNear<4000)return;var p=window._gps.last;if(!p||Date.now()-p.timestamp>15000)return;
+ var moved=_nearLastPoint?_haversine(p.lat,p.lng,_nearLastPoint.lat,_nearLastPoint.lng):Infinity;
+ var qualityChanged=(_nearLastAccuracy>100)!==(p.accuracy>100);
+ if(_lastNear&&moved<3&&!qualityChanged&&_nearLastMetric===_metricState.at&&now-_lastNear<15000)return;
+ _nearLastPoint={lat:p.lat,lng:p.lng};_nearLastAccuracy=p.accuracy;
+
+ _metricNearest=_nearestOf(p.lat,p.lng,terrainLoadedMetrics());
+ if(_metricNearest&&(_metricNearest.d>250||p.accuracy>100))_metricNearest=null;
+ var panel=document.getElementById('detail-panel'),body=document.getElementById('detail-body'),full=panel.classList.contains('dp-full'),scroll=body.scrollTop;
+ _finishFindNearest(p.lat,p.lng,p.accuracy);
+ if(full)panel.classList.add('dp-full');body.scrollTop=scroll;_lastNear=Date.now();_nearLastMetric=_metricState.at;
+ if(p.accuracy>100){var warning=document.createElement('div');warning.style.cssText='padding:14px;background:#fff0cc;color:#743900;font-weight:600';warning.textContent='Position approximative : +/-'+Math.round(p.accuracy)+' m. PK, voie et distances provisoires, non utilisables pour identifier une voie en securite.';body.prepend(warning);}
+}
+findNearest=function(){_nearOpen=true;++_nearToken;_lastNear=0;openDetail('Elements LGV proches','<div style="padding:20px"><b>Recherche de position recente...</b><p>PK et DATZD actualises pendant le suivi GPS.</p></div>');if(!window._gps.active)_gpsStart();terrainRefresh();};window.findNearest=findNearest;
+var terrainStatus=document.createElement('div');terrainStatus.id='terrain-status';terrainStatus.setAttribute('role','status');terrainStatus.textContent='GPS arrêté';document.body.appendChild(terrainStatus);
+var stop=document.createElement('button');stop.className='fab fab-white fab-secondary';stop.style.cssText='font-size:12px;font-weight:bold;color:#b71c1c';stop.textContent='STOP';stop.title='Arreter le suivi GPS';stop.onclick=function(){_gpsStop(false);};document.getElementById('fab-bar').insertBefore(stop,document.getElementById('fab-toggle'));
+setInterval(function(){var g=window._gps,p=g.last,age=p?Date.now()-p.timestamp:Infinity;
+ terrainStatus.classList.toggle('bad',!g.active||!p||age>15000||p.accuracy>20);
+ terrainStatus.textContent=!g.active?(g.errorText||'GPS arrêté'):!p?(g.errorText||'GPS : recherche de position...'):age>15000?'Position ancienne - '+Math.floor(age/1000)+' s':'GPS +/-'+Math.round(p.accuracy)+' m - '+(g.following?'suivi actif':'carte libre')+(p.accuracy>20?' - précision faible':'');
+ if(p&&map.getLayer('_gpsDot'))map.setPaintProperty('_gpsDot','circle-color',age>15000?'#888888':'#4285f4');
+ if(_nearOpen&&Date.now()-_lastNear>4000)terrainRefresh();},1000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&window._gps.active)_gpsStartWatch();});
+window.addEventListener('pageshow',function(e){if(e.persisted&&window._gps.active)_gpsStartWatch();});
+</script>
+
+<style id="terrain-layout-fix">/* Layout-only patch: no change to GPS, PK, data loading or table functions. */
+html,body{width:100%;max-width:100%;overflow:hidden}
+#detail-panel,#tbl-panel,#detail-panel *,#tbl-panel *{box-sizing:border-box;min-width:0}
+#detail-panel,#tbl-panel{overflow:hidden;max-width:100%;min-height:0!important}
+#detail-header{position:relative;display:flex!important;flex-wrap:nowrap!important;align-items:center;gap:8px;flex:0 0 auto!important;width:100%;max-width:100%;padding:6px 8px 6px 12px!important;overflow:hidden;z-index:2}
+#detail-title{flex:1 1 0%!important;min-width:0!important;max-width:100%;overflow:hidden!important;text-overflow:ellipsis;white-space:nowrap!important}
+#detail-header button{position:static!important;flex:0 0 44px!important;width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;padding:0!important;margin:0!important;display:flex;align-items:center;justify-content:center;border-radius:8px;touch-action:manipulation}
+#detail-header button:focus-visible,#tbl-close:focus-visible{outline:2px solid white;outline-offset:-4px}
+#detail-body{flex:1 1 0%!important;min-height:0!important;min-width:0;max-width:100%;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))!important;overflow-wrap:anywhere}
+#detail-body>*,#detail-body section{max-width:100%!important;min-width:0!important}
+#detail-body .dp-row{min-width:0;flex-wrap:nowrap}
+#detail-body .dp-k{flex:0 1 32%;width:32%;min-width:0!important;overflow-wrap:anywhere}
+#detail-body .dp-v{flex:1 1 0%;min-width:0!important;overflow-wrap:anywhere}
+#detail-body a,#detail-body button{max-width:100%;white-space:normal!important;overflow-wrap:anywhere}
+#detail-body img,#detail-body video{max-width:100%;height:auto}
+#detail-body table{width:100%!important;max-width:100%;table-layout:fixed}
+#detail-body td,#detail-body th{white-space:normal!important;overflow-wrap:anywhere;word-break:break-word}
+#tbl-header{position:relative!important;display:flex!important;flex-wrap:wrap!important;align-items:center;gap:8px;flex:0 0 auto!important;min-width:0;max-width:100%;width:100%;padding:10px 60px 10px 12px!important;overflow:hidden;z-index:2}
+#tbl-header>*{max-width:100%;min-width:0!important}
+#tbl-header select{flex:1 1 140px;width:140px;max-width:100%;min-height:40px}
+#tbl-header input{flex:1 1 160px;width:160px;max-width:100%;min-height:40px}
+#tbl-header span{overflow-wrap:anywhere}
+#tbl-close{position:absolute!important;top:6px!important;right:8px!important;left:auto!important;bottom:auto!important;display:flex!important;align-items:center;justify-content:center;flex:none!important;width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;padding:0!important;margin:0!important;z-index:3;touch-action:manipulation;border-radius:8px}
+#tbl-scroll{flex:1 1 0%!important;min-height:0!important;min-width:0!important;width:100%;max-width:100%;overflow:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:env(safe-area-inset-bottom,0px)}
+#tbl-scroll table{width:max-content!important;min-width:100%;max-width:none!important}
+#tbl-scroll th{z-index:1}
+#tbl-panel:not(.open){height:0!important;min-height:0!important;visibility:hidden;pointer-events:none}
+#tbl-panel.open{visibility:visible;pointer-events:auto;height:min(56vh,650px);height:min(56dvh,650px);max-height:calc(100dvh - 16px)}
+@media(max-width:768px){
+ #detail-panel{position:fixed!important;top:auto!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;max-width:100%!important;height:58vh!important;height:58dvh!important;max-height:calc(100dvh - 12px)!important;border-radius:16px 16px 0 0;transform:translateY(105%)!important;transition:transform .2s ease}
+ #detail-panel.open{transform:translateY(0)!important}
+ #detail-panel.dp-full{height:calc(100dvh - 12px)!important}
+ #dp-drag-handle{flex:0 0 16px}
+ #detail-header{padding-left:max(12px,env(safe-area-inset-left,0px))!important;padding-right:max(8px,env(safe-area-inset-right,0px))!important}
+ #detail-title{font-size:15px!important}
+ #detail-body{font-size:14px!important;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+ #tbl-panel{position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;max-width:100%!important;border-radius:16px 16px 0 0}
+ #tbl-panel.open{height:66vh!important;height:66dvh!important;max-height:calc(100dvh - 12px)!important}
+ #tbl-header{padding-left:max(12px,env(safe-area-inset-left,0px))!important;padding-right:calc(60px + env(safe-area-inset-right,0px))!important}
+ #tbl-close{right:calc(8px + env(safe-area-inset-right,0px))!important}
+ #tbl-scroll th,#tbl-scroll td{font-size:13px;padding:9px 10px}
+ body.layout-panel-open #fab-bar,body.layout-panel-open #gps-recenter-banner{visibility:hidden!important;pointer-events:none!important}
+ #search-wrap{left:56px!important;right:12px!important;transform:none!important;width:auto!important;max-width:none!important}
+ #search-input{min-width:0;max-width:100%;min-height:44px}
+ #search-res{max-width:100%;overflow-x:hidden}
+ .sr-item>span:last-child{min-width:0;overflow-wrap:anywhere}
+}
+@media(max-width:768px) and (orientation:landscape){
+ #detail-panel{height:calc(100dvh - 8px)!important;max-height:calc(100dvh - 8px)!important}
+ #tbl-panel.open{height:calc(100dvh - 8px)!important;max-height:calc(100dvh - 8px)!important}
+}
+</style>
+<script id="terrain-layout-behavior">(function(){
+ var detail=document.getElementById('detail-panel'),table=document.getElementById('tbl-panel');
+ if(!detail||!table)return;
+ var dc=document.querySelector('#detail-header button');if(dc){dc.setAttribute('aria-label','Fermer la fiche');dc.title='Fermer la fiche';dc.type='button';}
+ var tc=document.getElementById('tbl-close');if(tc){tc.setAttribute('aria-label','Fermer la table attributaire');tc.title='Fermer la table attributaire';tc.type='button';}
+ var lastDetail=detail.classList.contains('open'),lastTable=table.classList.contains('open');
+ function sync(){
+  var d=detail.classList.contains('open'),t=table.classList.contains('open');
+  if(d&&!lastDetail&&t){table.classList.remove('open');t=false;}
+  else if(t&&!lastTable&&d){if(typeof closeDetail==='function')closeDetail();else detail.classList.remove('open');d=false;}
+  lastDetail=d;lastTable=t;document.body.classList.toggle('layout-panel-open',d||t);
+ }
+ var observer=new MutationObserver(sync);observer.observe(detail,{attributes:true,attributeFilter:['class']});observer.observe(table,{attributes:true,attributeFilter:['class']});sync();
+})();
 </script>
 </body>
 </html>
