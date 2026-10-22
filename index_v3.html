@@ -353,7 +353,7 @@ button,a,[onclick]{touch-action:manipulation}
 })();
 </script>
 <script>
-var APP_VER = 'v3.83-pk-1m-gps';
+var APP_VER = 'v3.84-pk-1m-stabilise';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -1188,6 +1188,10 @@ function _gpsHandlePosition(pos, source){
   g.errorText='';
   g.last = p;
   g.lastFixAt = p.timestamp;
+  if(!g.samples)g.samples=[];
+  g.samples.push(p);
+  var cutoff=Date.now()-12000;
+  g.samples=g.samples.filter(function(x){return x.timestamp>=cutoff&&x.accuracy<=35;}).slice(-12);
   _gpsSetData(p);
   _gpsRecenter(p, first);
   _gpsUpdateBadge();
@@ -1333,6 +1337,7 @@ function _gpsStart(){
   g.active = true;
   g.following = true;
   g.last = null;
+  g.samples=[];
   g.lastFixAt = Date.now();
   g.session++;
   _gpsSetStatus('📡 Recherche de votre position…', true);
@@ -1377,6 +1382,7 @@ function _gpsStop(silent){
   g.active = false;
   g.following = false;
   g.last = null;
+  g.samples=[];
   g.mode = null;
   try{
     if(map.getSource('_gpsPoint'))map.getSource('_gpsPoint').setData(emptyFC());
@@ -1498,9 +1504,8 @@ function _parseVoie(v){
 }
 
 function _finishFindNearest(lat,lng,acc){
-  // Détection exclusivement fondée sur le référentiel PK 1 m.
   var npk=_metricNearest;
-  var pkPrec=npk?'référentiel PK 1 m':'PK 1 m indisponible';
+  var pkPrec=npk?'référentiel PK 1 m stabilisé':'PK 1 m indisponible';
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
   var pkP=_parseVoie(pkVoie);
 
@@ -2100,31 +2105,35 @@ function terrainLoadedMetrics(){
 }
 
 var _metricLookupSequence=0;
-function _waitForMetricTiles(timeoutMs){
- timeoutMs=timeoutMs||5500;
- return new Promise(function(resolve){
-  var done=false,timer=null;
-  function finish(){if(done)return;done=true;if(timer)clearTimeout(timer);try{map.off('idle',onIdle);map.off('sourcedata',onSourceData);}catch(e){}_pkMarkMetricsDirty();resolve();}
-  function onIdle(){finish();}
-  function onSourceData(e){if(e&&e.sourceId==='pk_metric'){try{if(e.isSourceLoaded||map.isSourceLoaded('pk_metric'))finish();}catch(err){}}}
-  map.on('idle',onIdle);map.on('sourcedata',onSourceData);timer=setTimeout(finish,timeoutMs);
-  try{if(map.isSourceLoaded('pk_metric'))setTimeout(finish,120);}catch(e){}
- });
+function _stableGpsPoint(){
+ var g=window._gps,arr=(g.samples||[]).filter(function(x){return Date.now()-x.timestamp<=12000&&x.accuracy<=35;});
+ if(arr.length<3)return null;
+ // Médiane pondérée pour réduire les sauts GPS du téléphone.
+ function med(values){values=values.slice().sort(function(a,b){return a-b;});var i=Math.floor(values.length/2);return values.length%2?values[i]:(values[i-1]+values[i])/2;}
+ var lat0=med(arr.map(function(x){return x.lat;})),lng0=med(arr.map(function(x){return x.lng;}));
+ var kept=arr.filter(function(x){return _haversine(lat0,lng0,x.lat,x.lng)<=Math.max(12,x.accuracy*1.5);});
+ if(kept.length<3)kept=arr;
+ var sw=0,lat=0,lng=0;
+ kept.forEach(function(x){var w=1/Math.max(9,x.accuracy*x.accuracy);sw+=w;lat+=x.lat*w;lng+=x.lng*w;});
+ return {lat:lat/sw,lng:lng/sw,accuracy:Math.max(3,med(kept.map(function(x){return x.accuracy;}))),count:kept.length,timestamp:Date.now()};
 }
-async function findMetricPKAtPosition(lat,lng,gpsAccuracy){
- var sequence=++_metricLookupSequence;
- if(!map.getSource('pk_metric'))throw new Error('Source pk_metric absente.');
- var center=map.getCenter(),off=_haversine(lat,lng,center.lat,center.lng);
- if(off>10||map.getZoom()<20)map.jumpTo({center:[lng,lat],zoom:20});
- _pkMarkMetricsDirty();await _waitForMetricTiles(5500);
- if(sequence!==_metricLookupSequence)throw new Error('Recherche remplacée par une recherche plus récente.');
- terrainLoadedMetrics();await new Promise(function(r){setTimeout(r,220);});_pkMarkMetricsDirty();
- var features=terrainLoadedMetrics();
- if(!features.length)throw new Error('Aucun PK métrique chargé autour de la position. Vérifier data/pk_metric.pmtiles et le source-layer pk_metric.');
- var nearest=_nearestOf(lat,lng,features);if(!nearest)throw new Error('Aucun point PK 1 m exploitable.');
- var limit=Math.min(150,Math.max(35,Number(gpsAccuracy||0)*2.5));
- if(nearest.d>limit)throw new Error('Le PK 1 m le plus proche est à '+Math.round(nearest.d)+' m. Résultat refusé pour éviter une mauvaise voie.');
- return nearest;
+function _waitMetric(timeout){
+ return new Promise(function(resolve){var done=false,t=setTimeout(end,timeout||6000);function end(){if(done)return;done=true;clearTimeout(t);try{map.off('idle',end);map.off('sourcedata',sd);}catch(e){}_pkMarkMetricsDirty();resolve();}function sd(e){if(e&&e.sourceId==='pk_metric'){try{if(map.isSourceLoaded('pk_metric'))setTimeout(end,150);}catch(x){}}}map.on('idle',end);map.on('sourcedata',sd);});
+}
+async function _nearestMetric1m(lat,lng,accuracy){
+ var seq=++_metricLookupSequence;
+ if(!map.getSource('pk_metric'))throw new Error('Source PK métrique absente');
+ map.jumpTo({center:[lng,lat],zoom:21});
+ _pkMarkMetricsDirty();await _waitMetric(6000);if(seq!==_metricLookupSequence)throw new Error('Recherche remplacée');
+ await new Promise(function(r){setTimeout(r,250);});_pkMarkMetricsDirty();var fs=terrainLoadedMetrics();
+ if(!fs.length)throw new Error('Aucun point du référentiel PK 1 m chargé. Vérifier pk_metric.pmtiles et le source-layer pk_metric.');
+ // Travaille uniquement sur une fenêtre locale pour éviter une autre branche éloignée.
+ var local=[];fs.forEach(function(f){if(!f.geom||f.geom.type!=='Point')return;var d=_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0]);if(d<=120)local.push({f:f,d:d});});
+ if(!local.length)throw new Error('Aucun PK 1 m à moins de 120 m de la position stabilisée.');
+ local.sort(function(a,b){return a.d-b.d;});
+ var best=local[0],limit=Math.min(80,Math.max(25,accuracy*2));
+ if(best.d>limit)throw new Error('Référentiel PK 1 m trouvé à '+Math.round(best.d)+' m, résultat refusé pour éviter une mauvaise voie.');
+ return best;
 }
 
 function terrainExact(q){
@@ -2198,22 +2207,27 @@ closeDetail=function(){_nearOpen=false;++_nearToken;document.body.classList.remo
 var _nearLastPoint=null,_nearLastAccuracy=null,_nearLastMetric=-1;
 async function terrainRefresh(){
  if(!_nearOpen||document.hidden||_nearBusy)return;
- var now=Date.now(),p=window._gps.last;if(!p)return;
- if(now-Number(p.timestamp||0)>15000){showNetToast('⚠ Position GPS trop ancienne pour identifier le PK');return;}
- var moved=_nearLastPoint?_haversine(p.lat,p.lng,_nearLastPoint.lat,_nearLastPoint.lng):Infinity;
- var qualityChanged=(_nearLastAccuracy>20)!==(p.accuracy>20);
- if(_lastNear&&moved<3&&!qualityChanged&&now-_lastNear<8000)return;
- _nearBusy=true;var token=++_nearToken;_nearLastPoint={lat:p.lat,lng:p.lng};_nearLastAccuracy=p.accuracy;
- var panel=document.getElementById('detail-panel'),body=document.getElementById('detail-body'),full=panel.classList.contains('dp-full'),scroll=body.scrollTop;
+ var raw=window._gps.last;if(!raw||Date.now()-raw.timestamp>15000)return;
+ var stable=_stableGpsPoint();
+ var body=document.getElementById('detail-body'),panel=document.getElementById('detail-panel');
+ if(!stable){
+  body.innerHTML='<div style="padding:18px"><b>📡 Stabilisation GPS en cours…</b><p style="margin-top:8px">Restez immobile quelques secondes. Il faut au moins 3 positions GPS de qualité avant de calculer le PK 1 m.</p><p style="margin-top:8px;color:#777">Précision actuelle : ±'+Math.round(raw.accuracy)+' m</p></div>';
+  return;
+ }
+ var moved=_nearLastPoint?_haversine(stable.lat,stable.lng,_nearLastPoint.lat,_nearLastPoint.lng):Infinity;
+ if(_lastNear&&moved<2&&Date.now()-_lastNear<10000)return;
+ _nearBusy=true;var token=++_nearToken;_nearLastPoint={lat:stable.lat,lng:stable.lng};_nearLastAccuracy=stable.accuracy;
+ var full=panel.classList.contains('dp-full'),scroll=body.scrollTop;
  try{
-  body.innerHTML='<div style="padding:18px"><div style="font-size:15px;font-weight:700;color:#1a1a2e">📡 Recherche du PK 1 m…</div><p style="margin-top:8px;color:#666">Chargement du référentiel métrique autour de votre position.</p><p style="margin-top:6px;color:#888;font-size:12px">Précision GPS actuelle : ±'+Math.round(p.accuracy)+' m</p></div>';
-  _metricNearest=await findMetricPKAtPosition(p.lat,p.lng,p.accuracy);if(token!==_nearToken||!_nearOpen)return;
-  _finishFindNearest(p.lat,p.lng,p.accuracy);if(full)panel.classList.add('dp-full');body.scrollTop=scroll;
-  if(p.accuracy>20){var warning=document.createElement('div');warning.style.cssText='padding:14px;background:#fff0cc;color:#743900;font-weight:600;line-height:1.45';warning.textContent='Référentiel PK 1 m utilisé, mais la position du téléphone est à ±'+Math.round(p.accuracy)+' m. Le PK affiché reste dépendant de la précision GPS.';body.prepend(warning);}
+  body.innerHTML='<div style="padding:18px"><b>📍 Calcul du PK 1 m précis…</b><p style="margin-top:8px">Position stabilisée avec '+stable.count+' mesures GPS · ±'+Math.round(stable.accuracy)+' m.</p></div>';
+  _metricNearest=await _nearestMetric1m(stable.lat,stable.lng,stable.accuracy);
+  if(token!==_nearToken||!_nearOpen)return;
+  _finishFindNearest(stable.lat,stable.lng,stable.accuracy);if(full)panel.classList.add('dp-full');body.scrollTop=scroll;
+  var info=document.createElement('div');info.style.cssText='padding:10px 14px;background:#e8f5e9;color:#1b5e20;font-weight:600';info.textContent='PK calculé sur le référentiel 1 m avec '+stable.count+' mesures GPS stabilisées · distance au point PK : '+Math.round(_metricNearest.d)+' m.';body.prepend(info);
   _lastNear=Date.now();_nearLastMetric=_metricState.at;
  }catch(e){
-  console.warn('Recherche PK métrique :',e);_metricNearest=null;if(token!==_nearToken||!_nearOpen)return;
-  body.innerHTML='<div style="padding:16px"><div style="padding:14px;background:#ffebee;border-left:4px solid #c62828;border-radius:8px"><div style="font-size:15px;font-weight:700;color:#b71c1c">⚠ PK 1 m indisponible</div><p style="margin-top:8px;line-height:1.5;color:#5d3030">'+esc(e.message||'Le référentiel métrique n’a pas pu être lu.')+'</p><p style="margin-top:8px;font-size:12px;color:#777">Le PK 100 m n’est pas utilisé comme résultat précis.</p><button type="button" onclick="terrainRefresh()" style="margin-top:12px;min-height:44px;padding:8px 14px;border:0;border-radius:7px;background:#1a1a2e;color:white;font-weight:700">↻ Réessayer le PK 1 m</button></div></div>';showNetToast('⚠ PK 1 m non disponible');
+  _metricNearest=null;if(token!==_nearToken||!_nearOpen)return;
+  body.innerHTML='<div style="padding:16px"><div style="padding:14px;background:#ffebee;border-left:4px solid #c62828;border-radius:8px"><b>⚠ PK 1 m indisponible</b><p style="margin-top:8px">'+esc(e.message)+'</p><p style="margin-top:8px;color:#777">Aucun repli vers le PK 100 m.</p></div></div>';
  }finally{_nearBusy=false;}
 }
 findNearest=function(){_nearOpen=true;++_nearToken;_lastNear=0;openDetail('Elements LGV proches','<div style="padding:20px"><b>Recherche de position recente...</b><p>PK et DATZD actualises pendant le suivi GPS.</p></div>');if(!window._gps.active)_gpsStart();terrainRefresh();};window.findNearest=findNearest;
