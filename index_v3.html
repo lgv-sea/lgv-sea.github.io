@@ -353,7 +353,7 @@ button,a,[onclick]{touch-action:manipulation}
 })();
 </script>
 <script>
-var APP_VER = 'v3.82-pk-index';
+var APP_VER = 'v3.83-pk-1m-gps';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -696,7 +696,7 @@ function _initVectorLayers(){
     paint:{'text-color':'#222','text-halo-color':'rgba(255,255,255,.97)','text-halo-width':1.4}});
 
   try{
-    map.addSource('pk_metric',{type:'vector',url:'pmtiles://'+_pkMetricBase});
+    map.addSource('pk_metric',{type:'vector',url:'pmtiles://'+_pkMetricBase,minzoom:0,maxzoom:20});
 
     function addMetricTier(id,minz,maxz,size){
       map.addLayer({id:id,type:'symbol',source:'pk_metric','source-layer':'pk_metric',minzoom:minz,maxzoom:maxz,
@@ -712,7 +712,7 @@ function _initVectorLayers(){
         paint:{'text-color':'#d32f2f','text-halo-color':'rgba(255,255,255,.98)','text-halo-width':1.5}});
     }
     addMetricTier('pkm10-symbol',18,20,9);
-    addMetricTier('pkm1-symbol',20,22,9);
+    addMetricTier('pkm1-symbol',20,22,10);
 
     _pkMetricArchive.getHeader().then(function(h){
       console.log('PMTiles PK OK',h);
@@ -1498,9 +1498,9 @@ function _parseVoie(v){
 }
 
 function _finishFindNearest(lat,lng,acc){
-  var npk=_metricNearest,pkPrec=npk?'référentiel métrique':'indisponible';
-  if(!npk&&_pkHData){npk=_nearestOf(lat,lng,_pkReferenceIndex().hecto);if(npk)pkPrec='repli : repere 100 m';}
-  if(!npk){npk=_nearestOf(lat,lng,layerData.pk);if(npk)pkPrec='repli : repere kilometrique';}
+  // Détection exclusivement fondée sur le référentiel PK 1 m.
+  var npk=_metricNearest;
+  var pkPrec=npk?'référentiel PK 1 m':'PK 1 m indisponible';
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
   var pkP=_parseVoie(pkVoie);
 
@@ -1536,15 +1536,8 @@ function _finishFindNearest(lat,lng,acc){
 
   if(npk){
     var p=npk.f.props,co=npk.f.geom.coordinates;
-    var rawLbl=p._pk_label!=null?p._pk_label:(p.pk!=null?p.pk:null);
-    var lbl;
-    if(rawLbl!==null&&rawLbl!==undefined&&rawLbl!==''){
-      var numV=parseFloat(rawLbl);
-      if(!isNaN(numV)&&String(rawLbl).indexOf('+')===-1){
-        if(numV>=1000){var km=Math.floor(numV/1000),m=Math.round(numV%1000);lbl='PK '+km+'+'+('000'+m).slice(-3);}
-        else{lbl='PK '+Math.round(numV)+'+000';}
-      }else{lbl='PK '+c(rawLbl);}
-    }else{lbl=c(p.Name||'?');}
+    var metricValue=terrainPK(p);
+    var lbl=metricValue!==null?'PK '+terrainLabel(metricValue):'PK non renseigné';
     html+='<div style="padding:10px;background:#fff3e0;border-radius:8px;border-left:4px solid #cc0000">';
     html+='<div style="font-size:11px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px">PK le plus proche</div>';
     html+='<div style="font-size:18px;font-weight:700;color:#cc0000">'+lbl+'</div>';
@@ -2105,6 +2098,35 @@ function terrainLoadedMetrics(){
  }catch(e){st.items=[];st.byPK=new Map();}
  return st.items;
 }
+
+var _metricLookupSequence=0;
+function _waitForMetricTiles(timeoutMs){
+ timeoutMs=timeoutMs||5500;
+ return new Promise(function(resolve){
+  var done=false,timer=null;
+  function finish(){if(done)return;done=true;if(timer)clearTimeout(timer);try{map.off('idle',onIdle);map.off('sourcedata',onSourceData);}catch(e){}_pkMarkMetricsDirty();resolve();}
+  function onIdle(){finish();}
+  function onSourceData(e){if(e&&e.sourceId==='pk_metric'){try{if(e.isSourceLoaded||map.isSourceLoaded('pk_metric'))finish();}catch(err){}}}
+  map.on('idle',onIdle);map.on('sourcedata',onSourceData);timer=setTimeout(finish,timeoutMs);
+  try{if(map.isSourceLoaded('pk_metric'))setTimeout(finish,120);}catch(e){}
+ });
+}
+async function findMetricPKAtPosition(lat,lng,gpsAccuracy){
+ var sequence=++_metricLookupSequence;
+ if(!map.getSource('pk_metric'))throw new Error('Source pk_metric absente.');
+ var center=map.getCenter(),off=_haversine(lat,lng,center.lat,center.lng);
+ if(off>10||map.getZoom()<20)map.jumpTo({center:[lng,lat],zoom:20});
+ _pkMarkMetricsDirty();await _waitForMetricTiles(5500);
+ if(sequence!==_metricLookupSequence)throw new Error('Recherche remplacée par une recherche plus récente.');
+ terrainLoadedMetrics();await new Promise(function(r){setTimeout(r,220);});_pkMarkMetricsDirty();
+ var features=terrainLoadedMetrics();
+ if(!features.length)throw new Error('Aucun PK métrique chargé autour de la position. Vérifier data/pk_metric.pmtiles et le source-layer pk_metric.');
+ var nearest=_nearestOf(lat,lng,features);if(!nearest)throw new Error('Aucun point PK 1 m exploitable.');
+ var limit=Math.min(150,Math.max(35,Number(gpsAccuracy||0)*2.5));
+ if(nearest.d>limit)throw new Error('Le PK 1 m le plus proche est à '+Math.round(nearest.d)+' m. Résultat refusé pour éviter une mauvaise voie.');
+ return nearest;
+}
+
 function terrainExact(q){
  terrainLoadedMetrics();var hits=[],seen=new Set();
  function add(f,estimated){
@@ -2174,21 +2196,25 @@ openDetail=function(t,h){if(!String(t).includes('proches')){_nearOpen=false;++_n
 closeDetail=function(){_nearOpen=false;++_nearToken;document.body.classList.remove('terrain-detail');_oldClose();};
 
 var _nearLastPoint=null,_nearLastAccuracy=null,_nearLastMetric=-1;
-function terrainRefresh(){
- if(!_nearOpen||document.hidden)return;
- var now=Date.now();
- if(_lastNear&&now-_lastNear<4000)return;var p=window._gps.last;if(!p||Date.now()-p.timestamp>15000)return;
+async function terrainRefresh(){
+ if(!_nearOpen||document.hidden||_nearBusy)return;
+ var now=Date.now(),p=window._gps.last;if(!p)return;
+ if(now-Number(p.timestamp||0)>15000){showNetToast('⚠ Position GPS trop ancienne pour identifier le PK');return;}
  var moved=_nearLastPoint?_haversine(p.lat,p.lng,_nearLastPoint.lat,_nearLastPoint.lng):Infinity;
- var qualityChanged=(_nearLastAccuracy>100)!==(p.accuracy>100);
- if(_lastNear&&moved<3&&!qualityChanged&&_nearLastMetric===_metricState.at&&now-_lastNear<15000)return;
- _nearLastPoint={lat:p.lat,lng:p.lng};_nearLastAccuracy=p.accuracy;
-
- _metricNearest=_nearestOf(p.lat,p.lng,terrainLoadedMetrics());
- if(_metricNearest&&(_metricNearest.d>250||p.accuracy>100))_metricNearest=null;
+ var qualityChanged=(_nearLastAccuracy>20)!==(p.accuracy>20);
+ if(_lastNear&&moved<3&&!qualityChanged&&now-_lastNear<8000)return;
+ _nearBusy=true;var token=++_nearToken;_nearLastPoint={lat:p.lat,lng:p.lng};_nearLastAccuracy=p.accuracy;
  var panel=document.getElementById('detail-panel'),body=document.getElementById('detail-body'),full=panel.classList.contains('dp-full'),scroll=body.scrollTop;
- _finishFindNearest(p.lat,p.lng,p.accuracy);
- if(full)panel.classList.add('dp-full');body.scrollTop=scroll;_lastNear=Date.now();_nearLastMetric=_metricState.at;
- if(p.accuracy>100){var warning=document.createElement('div');warning.style.cssText='padding:14px;background:#fff0cc;color:#743900;font-weight:600';warning.textContent='Position approximative : +/-'+Math.round(p.accuracy)+' m. PK, voie et distances provisoires, non utilisables pour identifier une voie en securite.';body.prepend(warning);}
+ try{
+  body.innerHTML='<div style="padding:18px"><div style="font-size:15px;font-weight:700;color:#1a1a2e">📡 Recherche du PK 1 m…</div><p style="margin-top:8px;color:#666">Chargement du référentiel métrique autour de votre position.</p><p style="margin-top:6px;color:#888;font-size:12px">Précision GPS actuelle : ±'+Math.round(p.accuracy)+' m</p></div>';
+  _metricNearest=await findMetricPKAtPosition(p.lat,p.lng,p.accuracy);if(token!==_nearToken||!_nearOpen)return;
+  _finishFindNearest(p.lat,p.lng,p.accuracy);if(full)panel.classList.add('dp-full');body.scrollTop=scroll;
+  if(p.accuracy>20){var warning=document.createElement('div');warning.style.cssText='padding:14px;background:#fff0cc;color:#743900;font-weight:600;line-height:1.45';warning.textContent='Référentiel PK 1 m utilisé, mais la position du téléphone est à ±'+Math.round(p.accuracy)+' m. Le PK affiché reste dépendant de la précision GPS.';body.prepend(warning);}
+  _lastNear=Date.now();_nearLastMetric=_metricState.at;
+ }catch(e){
+  console.warn('Recherche PK métrique :',e);_metricNearest=null;if(token!==_nearToken||!_nearOpen)return;
+  body.innerHTML='<div style="padding:16px"><div style="padding:14px;background:#ffebee;border-left:4px solid #c62828;border-radius:8px"><div style="font-size:15px;font-weight:700;color:#b71c1c">⚠ PK 1 m indisponible</div><p style="margin-top:8px;line-height:1.5;color:#5d3030">'+esc(e.message||'Le référentiel métrique n’a pas pu être lu.')+'</p><p style="margin-top:8px;font-size:12px;color:#777">Le PK 100 m n’est pas utilisé comme résultat précis.</p><button type="button" onclick="terrainRefresh()" style="margin-top:12px;min-height:44px;padding:8px 14px;border:0;border-radius:7px;background:#1a1a2e;color:white;font-weight:700">↻ Réessayer le PK 1 m</button></div></div>';showNetToast('⚠ PK 1 m non disponible');
+ }finally{_nearBusy=false;}
 }
 findNearest=function(){_nearOpen=true;++_nearToken;_lastNear=0;openDetail('Elements LGV proches','<div style="padding:20px"><b>Recherche de position recente...</b><p>PK et DATZD actualises pendant le suivi GPS.</p></div>');if(!window._gps.active)_gpsStart();terrainRefresh();};window.findNearest=findNearest;
 var terrainStatus=document.createElement('div');terrainStatus.id='terrain-status';terrainStatus.setAttribute('role','status');terrainStatus.textContent='GPS arrêté';document.body.appendChild(terrainStatus);
