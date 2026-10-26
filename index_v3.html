@@ -353,7 +353,7 @@ button,a,[onclick]{touch-action:manipulation}
 })();
 </script>
 <script>
-var APP_VER = 'v3.85-pk-position-figee';
+var APP_VER = 'v3.86-pk-simple-interpole';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -1505,7 +1505,7 @@ function _parseVoie(v){
 
 function _finishFindNearest(lat,lng,acc){
   var npk=_metricNearest;
-  var pkPrec=npk?'référentiel PK 1 m stabilisé':'PK 1 m indisponible';
+  var pkPrec=npk?(npk.f.props._pk_interpolated?'PK interpolé entre repères':'référentiel PK 1 m'):'PK indisponible';
   var pkVoie=npk?String(npk.f.props._voie||npk.f.props.voie||''):'';
   var pkP=_parseVoie(pkVoie);
 
@@ -2120,22 +2120,36 @@ function _stableGpsPoint(){
 function _waitMetric(timeout){
  return new Promise(function(resolve){var done=false,t=setTimeout(end,timeout||6000);function end(){if(done)return;done=true;clearTimeout(t);try{map.off('idle',end);map.off('sourcedata',sd);}catch(e){}_pkMarkMetricsDirty();resolve();}function sd(e){if(e&&e.sourceId==='pk_metric'){try{if(map.isSourceLoaded('pk_metric'))setTimeout(end,150);}catch(x){}}}map.on('idle',end);map.on('sourcedata',sd);});
 }
-async function _nearestMetric1m(lat,lng,accuracy){
- var seq=++_metricLookupSequence;
- if(!map.getSource('pk_metric'))throw new Error('Source PK métrique absente');
- map.jumpTo({center:[lng,lat],zoom:21});
- _pkMarkMetricsDirty();await _waitMetric(6000);if(seq!==_metricLookupSequence)throw new Error('Recherche remplacée');
- await new Promise(function(r){setTimeout(r,250);});_pkMarkMetricsDirty();var fs=terrainLoadedMetrics();
- if(!fs.length)throw new Error('Aucun point du référentiel PK 1 m chargé. Vérifier pk_metric.pmtiles et le source-layer pk_metric.');
- // Travaille uniquement sur une fenêtre locale pour éviter une autre branche éloignée.
- var local=[];fs.forEach(function(f){if(!f.geom||f.geom.type!=='Point')return;var d=_haversine(lat,lng,f.geom.coordinates[1],f.geom.coordinates[0]);if(d<=120)local.push({f:f,d:d});});
- if(!local.length)throw new Error('Aucun PK 1 m à moins de 120 m de la position stabilisée.');
- local.sort(function(a,b){return a.d-b.d;});
- var best=local[0],limit=Math.min(80,Math.max(25,accuracy*2));
- if(best.d>limit)throw new Error('Référentiel PK 1 m trouvé à '+Math.round(best.d)+' m, résultat refusé pour éviter une mauvaise voie.');
- return best;
+function _nearestPkInterpolated(lat,lng){
+  var idx=_pkReferenceIndex(),best=null;
+  var latR=lat*Math.PI/180;
+  function xy(co){
+    return {x:(co[0]-lng)*111320*Math.cos(latR),y:(co[1]-lat)*110540};
+  }
+  idx.groups.forEach(function(fs,voie){
+    for(var i=0;i<fs.length-1;i++){
+      var a=fs[i],b=fs[i+1];
+      if(!a.f.geom||!b.f.geom)continue;
+      var ca=a.f.geom.coordinates,cb=b.f.geom.coordinates;
+      var A=xy(ca),B=xy(cb),vx=B.x-A.x,vy=B.y-A.y,l2=vx*vx+vy*vy;
+      if(l2<=0)continue;
+      var t=-(A.x*vx+A.y*vy)/l2;t=Math.max(0,Math.min(1,t));
+      var px=A.x+t*vx,py=A.y+t*vy,d=Math.sqrt(px*px+py*py);
+      if(!best||d<best.d){
+        var m=Math.round(a.m+t*(b.m-a.m));
+        best={d:d,f:{props:Object.assign({},a.f.props,{_pk_label:terrainLabel(m),_pk_interpolated:true,_voie:voie}),geom:{type:'Point',coordinates:[ca[0]+t*(cb[0]-ca[0]),ca[1]+t*(cb[1]-ca[1])]}}};
+      }
+    }
+  });
+  if(!best)throw new Error('Aucun repère PK exploitable chargé.');
+  if(best.d>150)throw new Error('La position est trop éloignée de la LGV ('+Math.round(best.d)+' m).');
+  return best;
 }
-
+async function _nearestMetric1m(lat,lng,accuracy){
+  // Méthode simple et robuste : interpolation entre les repères PK chargés.
+  // Elle ne dépend plus du chargement des tuiles pk_metric.pmtiles.
+  return _nearestPkInterpolated(lat,lng);
+}
 function terrainExact(q){
  terrainLoadedMetrics();var hits=[],seen=new Set();
  function add(f,estimated){
