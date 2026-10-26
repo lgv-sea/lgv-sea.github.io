@@ -353,7 +353,7 @@ button,a,[onclick]{touch-action:manipulation}
 })();
 </script>
 <script>
-var APP_VER = 'v3.84-pk-1m-stabilise';
+var APP_VER = 'v3.85-pk-position-figee';
 
 var _pkPrefetch=null, _pkMapReady=false;
 fetch('data/pk.geojson?_v='+APP_VER)
@@ -1195,7 +1195,7 @@ function _gpsHandlePosition(pos, source){
   _gpsSetData(p);
   _gpsRecenter(p, first);
   _gpsUpdateBadge();
-  if(typeof terrainRefresh==='function' && _nearOpen)terrainRefresh();
+  
   if(first){
     _gpsSetStatus('📍 Position trouvée · suivi actif', true);
     _gpsHideRecenterBanner();
@@ -2205,39 +2205,47 @@ openDetail=function(t,h){if(!String(t).includes('proches')){_nearOpen=false;++_n
 closeDetail=function(){_nearOpen=false;++_nearToken;document.body.classList.remove('terrain-detail');_oldClose();};
 
 var _nearLastPoint=null,_nearLastAccuracy=null,_nearLastMetric=-1;
-async function terrainRefresh(){
- if(!_nearOpen||document.hidden||_nearBusy)return;
- var raw=window._gps.last;if(!raw||Date.now()-raw.timestamp>15000)return;
- var stable=_stableGpsPoint();
- var body=document.getElementById('detail-body'),panel=document.getElementById('detail-panel');
- if(!stable){
-  body.innerHTML='<div style="padding:18px"><b>📡 Stabilisation GPS en cours…</b><p style="margin-top:8px">Restez immobile quelques secondes. Il faut au moins 3 positions GPS de qualité avant de calculer le PK 1 m.</p><p style="margin-top:8px;color:#777">Précision actuelle : ±'+Math.round(raw.accuracy)+' m</p></div>';
-  return;
- }
- var moved=_nearLastPoint?_haversine(stable.lat,stable.lng,_nearLastPoint.lat,_nearLastPoint.lng):Infinity;
- if(_lastNear&&moved<2&&Date.now()-_lastNear<10000)return;
- _nearBusy=true;var token=++_nearToken;_nearLastPoint={lat:stable.lat,lng:stable.lng};_nearLastAccuracy=stable.accuracy;
- var full=panel.classList.contains('dp-full'),scroll=body.scrollTop;
- try{
-  body.innerHTML='<div style="padding:18px"><b>📍 Calcul du PK 1 m précis…</b><p style="margin-top:8px">Position stabilisée avec '+stable.count+' mesures GPS · ±'+Math.round(stable.accuracy)+' m.</p></div>';
-  _metricNearest=await _nearestMetric1m(stable.lat,stable.lng,stable.accuracy);
-  if(token!==_nearToken||!_nearOpen)return;
-  _finishFindNearest(stable.lat,stable.lng,stable.accuracy);if(full)panel.classList.add('dp-full');body.scrollTop=scroll;
-  var info=document.createElement('div');info.style.cssText='padding:10px 14px;background:#e8f5e9;color:#1b5e20;font-weight:600';info.textContent='PK calculé sur le référentiel 1 m avec '+stable.count+' mesures GPS stabilisées · distance au point PK : '+Math.round(_metricNearest.d)+' m.';body.prepend(info);
-  _lastNear=Date.now();_nearLastMetric=_metricState.at;
- }catch(e){
-  _metricNearest=null;if(token!==_nearToken||!_nearOpen)return;
-  body.innerHTML='<div style="padding:16px"><div style="padding:14px;background:#ffebee;border-left:4px solid #c62828;border-radius:8px"><b>⚠ PK 1 m indisponible</b><p style="margin-top:8px">'+esc(e.message)+'</p><p style="margin-top:8px;color:#777">Aucun repli vers le PK 100 m.</p></div></div>';
- }finally{_nearBusy=false;}
+async function terrainRefresh(snapshot){
+  if(!_nearOpen||document.hidden||_nearBusy)return;
+  var fixed=snapshot||window._nearFrozenPosition;if(!fixed)return;
+  var body=document.getElementById('detail-body'),panel=document.getElementById('detail-panel');
+  _nearBusy=true;var token=++_nearToken;
+  try{
+    body.innerHTML='<div style="padding:18px"><b>Position figée : calcul du PK 1 m...</b><p style="margin-top:8px">Précision GPS au clic : ±'+Math.round(fixed.accuracy)+' m.</p></div>';
+    _metricNearest=await _nearestMetric1m(fixed.lat,fixed.lng,fixed.accuracy);
+    if(token!==_nearToken||!_nearOpen)return;
+    _finishFindNearest(fixed.lat,fixed.lng,fixed.accuracy);
+    var info=document.createElement('div');info.style.cssText='padding:10px 14px;background:#e8f5e9;color:#1b5e20;font-weight:600';
+    info.textContent='Position figée au clic. Résultat non actualisé par le suivi GPS. Distance au PK : '+Math.round(_metricNearest.d)+' m.';
+    document.getElementById('detail-body').prepend(info);_lastNear=Date.now();
+  }catch(e){
+    _metricNearest=null;if(token!==_nearToken||!_nearOpen)return;
+    body.innerHTML='<div style="padding:16px"><b>PK 1 m indisponible</b><p>'+esc(e.message)+'</p></div>';
+  }finally{_nearBusy=false;}
 }
-findNearest=function(){_nearOpen=true;++_nearToken;_lastNear=0;openDetail('Elements LGV proches','<div style="padding:20px"><b>Recherche de position recente...</b><p>PK et DATZD actualises pendant le suivi GPS.</p></div>');if(!window._gps.active)_gpsStart();terrainRefresh();};window.findNearest=findNearest;
+window._nearFrozenPosition=null;
+findNearest=function(){
+  var g=window._gps;_nearOpen=true;++_nearToken;_lastNear=0;
+  openDetail('Elements LGV proches','<div style="padding:20px"><b>Capture de la position...</b><p>La position utilisée pour le PK sera figée pour cette recherche.</p></div>');
+  if(!g.active)_gpsStart();
+  if(g.last&&Date.now()-g.last.timestamp<=15000){
+    window._nearFrozenPosition={lat:g.last.lat,lng:g.last.lng,accuracy:g.last.accuracy,timestamp:g.last.timestamp};
+    terrainRefresh(window._nearFrozenPosition);return;
+  }
+  var requestToken=_nearToken;
+  navigator.geolocation.getCurrentPosition(function(pos){
+    if(requestToken!==_nearToken||!_nearOpen)return;var c=pos.coords;
+    window._nearFrozenPosition={lat:c.latitude,lng:c.longitude,accuracy:c.accuracy,timestamp:pos.timestamp||Date.now()};
+    terrainRefresh(window._nearFrozenPosition);
+  },function(e){if(requestToken===_nearToken&&_nearOpen)document.getElementById('detail-body').innerHTML='<div style="padding:16px"><b>Position non obtenue</b><p>'+esc(e.message||'Erreur GPS')+'</p></div>';},{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+};window.findNearest=findNearest;
 var terrainStatus=document.createElement('div');terrainStatus.id='terrain-status';terrainStatus.setAttribute('role','status');terrainStatus.textContent='GPS arrêté';document.body.appendChild(terrainStatus);
 var stop=document.createElement('button');stop.className='fab fab-white fab-secondary';stop.style.cssText='font-size:12px;font-weight:bold;color:#b71c1c';stop.textContent='STOP';stop.title='Arreter le suivi GPS';stop.onclick=function(){_gpsStop(false);};document.getElementById('fab-bar').insertBefore(stop,document.getElementById('fab-toggle'));
 setInterval(function(){var g=window._gps,p=g.last,age=p?Date.now()-p.timestamp:Infinity;
  terrainStatus.classList.toggle('bad',!g.active||!p||age>15000||p.accuracy>20);
  terrainStatus.textContent=!g.active?(g.errorText||'GPS arrêté'):!p?(g.errorText||'GPS : recherche de position...'):age>15000?'Position ancienne - '+Math.floor(age/1000)+' s':'GPS +/-'+Math.round(p.accuracy)+' m - '+(g.following?'suivi actif':'carte libre')+(p.accuracy>20?' - précision faible':'');
  if(p&&map.getLayer('_gpsDot'))map.setPaintProperty('_gpsDot','circle-color',age>15000?'#888888':'#4285f4');
- if(_nearOpen&&Date.now()-_lastNear>4000)terrainRefresh();},1000);
+ },1000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&window._gps.active)_gpsStartWatch();});
 window.addEventListener('pageshow',function(e){if(e.persisted&&window._gps.active)_gpsStartWatch();});
 </script>
